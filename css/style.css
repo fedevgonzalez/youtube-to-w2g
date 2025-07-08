@@ -5,7 +5,7 @@
   display: inline-flex !important;
   align-items: center !important;
   gap: 6px !important;
-  padding: 0 12px !important;
+  padding: 10px!important;
   height: 36px !important;
   background-color: #4CAF50 !important;
   color: white !important;
@@ -154,4 +154,91 @@ html[dark] .w2g-button,
 .ytp-autohide:hover .w2g-button,
 .ytp-autohide.ytp-user-hover .w2g-button {
   opacity: 1 !important;
+}
+
+/* Thumbnail button styles */
+.w2g-thumbnail-button {
+  position: absolute !important;
+  bottom: 8px !important;
+  left: 8px !important;
+  width: 32px !important;
+  height: 32px !important;
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  border: none !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  opacity: 0 !important;
+  transition: all 0.2s ease !important;
+  z-index: 10 !important;
+  padding: 4px !important;
+}
+
+/* W2G logo in thumbnail button */
+.w2g-thumbnail-button svg {
+  width: 20px !important;
+  height: 20px !important;
+  fill: white !important;
+}
+
+.w2g-thumbnail-button svg path {
+  fill: rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Show button on hover - YouTube containers */
+ytd-video-renderer:hover .w2g-thumbnail-button,
+ytd-rich-item-renderer:hover .w2g-thumbnail-button,
+ytd-compact-video-renderer:hover .w2g-thumbnail-button,
+ytd-grid-video-renderer:hover .w2g-thumbnail-button,
+ytd-reel-item-renderer:hover .w2g-thumbnail-button,
+ytd-rich-grid-media:hover .w2g-thumbnail-button,
+ytm-video-card-renderer:hover .w2g-thumbnail-button,
+ytm-compact-video-renderer:hover .w2g-thumbnail-button {
+  opacity: 1 !important;
+}
+
+/* Hover effect for thumbnail button */
+.w2g-thumbnail-button:hover {
+  background-color: rgba(76, 175, 80, 0.9) !important;
+  transform: scale(1.1) !important;
+}
+
+.w2g-thumbnail-button:hover svg path {
+  fill: white !important;
+}
+
+/* Active state */
+.w2g-thumbnail-button:active {
+  transform: scale(0.95) !important;
+}
+
+/* Processing state for thumbnail button */
+.w2g-thumbnail-button.processing {
+  pointer-events: none !important;
+  background-color: rgba(255, 152, 0, 0.9) !important;
+}
+
+.w2g-thumbnail-button.processing svg {
+  animation: w2g-spin 1s linear infinite !important;
+}
+
+/* Success state for thumbnail button */
+.w2g-thumbnail-button.success {
+  background-color: rgba(33, 150, 243, 0.9) !important;
+}
+
+.w2g-thumbnail-button.success svg {
+  fill: white !important;
+}
+
+.w2g-thumbnail-button.success svg path {
+  fill: white !important;
+}
+
+/* Spin animation */
+@keyframes w2g-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
