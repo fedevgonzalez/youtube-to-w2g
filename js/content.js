@@ -118,12 +118,10 @@ function showNotification(message, type = 'info') {
   }, 3000);
 }
 
-// Function to get W2G logo SVG (simplified for small size)
+// Function to get W2G logo SVG (using external file)
 function getW2GSvg() {
-  return `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width: 20px; height: 20px;">
-    <circle cx="12" cy="12" r="10" fill="white" opacity="0.9"/>
-    <path d="M 7 7 L 10 7 L 10 10 L 14 10 L 14 7 L 17 7 L 17 10 L 17 14 L 14 14 L 14 17 L 10 17 L 10 14 L 7 14 L 7 10 Z" fill="#4CAF50" stroke="#4CAF50" stroke-width="0.5"/>
-  </svg>`;
+  const svgUrl = chrome.runtime.getURL('icons/w2g.svg');
+  return `<img src="${svgUrl}" style="width: 20px; height: 20px;" alt="W2G">`;
 }
 
 // Function to extract video ID from various YouTube URL formats
