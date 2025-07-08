@@ -1,156 +1,149 @@
-# Send to W2G - Chrome Extension
+# YouTube to Watch2Gether (Y2W)
 
-Una extensión de Chrome que te permite enviar rápidamente videos de YouTube a tu sala de Watch2Gether con un solo clic.
+<div align="center">
+  <img src="icons/icon-128.png" alt="Y2W Logo" width="128" height="128">
+  
+  **Send YouTube videos to your Watch2Gether room with a single click!**
+  
+  [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Coming%20Soon-red?style=flat-square&logo=google-chrome)](https://chrome.google.com/webstore)
+  [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
+  [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
+</div>
 
-## Características
+## 📋 Overview
 
-- 🎬 Botón "Send to W2G" integrado en el reproductor de YouTube
-- ⚡ Envío rápido de videos a tu sala W2G
-- 🔒 API key seguro almacenado localmente
-- 🎨 Interfaz minimalista que se integra con YouTube
-- 📱 Compatible con el modo oscuro de YouTube
-- 🖱️ Menú contextual para enlaces de YouTube
+YouTube to Watch2Gether (Y2W) is a Chrome extension that adds a convenient "Send to W2G" button directly to YouTube videos. Share videos with your Watch2Gether room instantly without copying URLs or switching tabs!
 
-## Instalación
+### ✨ Features
 
-### Requisitos previos
+- 🎬 **One-Click Sharing**: Send any YouTube video to your W2G room instantly
+- 🔄 **Seamless Integration**: Button appears naturally in the YouTube player
+- 🎯 **Smart Positioning**: Works with all YouTube layouts (default, theater, fullscreen)
+- 🔐 **Secure**: Your API credentials are stored locally in Chrome's secure storage
+- ⚡ **Lightweight**: Minimal performance impact, only active on YouTube
 
-1. **Cuenta de Watch2Gether**: Necesitas una cuenta en [Watch2Gether](https://w2g.tv)
-2. **API Key**: Genera un API key desde tu perfil de W2G
-3. **Sala W2G**: Ten una sala creada o acceso a una existente
+## 🚀 Installation
 
-### Pasos de instalación
+### From Chrome Web Store (Coming Soon)
+The extension will be available on the Chrome Web Store soon!
 
-1. **Clonar o descargar este repositorio**
+### Manual Installation (Developer Mode)
+
+1. **Download the Extension**
    ```bash
-   git clone https://github.com/tuusuario/youtube-to-w2g.git
+   git clone https://github.com/fedevgonzalez/youtube-to-w2g.git
+   cd youtube-to-w2g
    ```
 
-2. **Preparar los íconos**
-   - Los íconos PNG necesitan ser generados a partir del SVG
-   - Puedes usar herramientas online como [CloudConvert](https://cloudconvert.com/svg-to-png)
-   - O si tienes ImageMagick instalado:
-     ```bash
-     cd extension/icons
-     convert -density 300 icon.svg -resize 16x16 icon-16.png
-     convert -density 300 icon.svg -resize 32x32 icon-32.png
-     convert -density 300 icon.svg -resize 48x48 icon-48.png
-     convert -density 300 icon.svg -resize 128x128 icon-128.png
-     ```
+2. **Load in Chrome**
+   - Open Chrome and navigate to `chrome://extensions/`
+   - Enable **Developer mode** (toggle in top right)
+   - Click **Load unpacked**
+   - Select the `youtube-to-w2g` folder
 
-3. **Cargar la extensión en Chrome**
-   - Abre Chrome y ve a `chrome://extensions/`
-   - Activa el "Modo de desarrollador" (esquina superior derecha)
-   - Haz clic en "Cargar extensión sin empaquetar"
-   - Selecciona la carpeta `extension` de este proyecto
+3. **Configure Your Credentials**
+   - Click the Y2W extension icon in your toolbar
+   - Enter your Watch2Gether API key and Room Access Key
+   - Click **Save Configuration**
 
-## Configuración
+## 🔑 Getting Watch2Gether Credentials
 
-### Obtener tu API Key de W2G
+### API Key
+1. Visit [Watch2Gether API](https://www.watch2gether.com/api)
+2. Log in to your W2G account
+3. Navigate to the API section
+4. Generate or copy your API key
 
-1. Inicia sesión en [Watch2Gether](https://w2g.tv)
-2. Haz clic en tu avatar → "Edit Profile"
-3. Desplázate hasta el final de la página
-4. En la sección "API Key", haz clic en "New" para generar una clave
-5. Copia la clave generada (guárdala en un lugar seguro)
+### Room Access Key
+1. Create or join a W2G room
+2. Open the room settings
+3. Look for "Room Access Key" or "Room API Access"
+4. Copy the key
 
-### Obtener el Access Key de tu sala
+> **Note**: Keep your credentials secure and never share them publicly!
 
-1. Crea o abre una sala en W2G
-2. Mira la URL de la sala, será algo como:
-   ```
-   https://w2g.tv/en/room/?access_key=gbzifrudabr50l01gguru8
-   ```
-3. Copia el valor después de `access_key=` (en este ejemplo: `gbzifrudabr50l01gguru8`)
+## 📸 Screenshots
 
-### Configurar la extensión
+<div align="center">
+  <img src="docs/screenshots/button-preview.png" alt="Y2W Button in YouTube Player" width="600">
+  <p><em>The Y2W button seamlessly integrates into the YouTube player</em></p>
+  
+  <img src="docs/screenshots/popup-config.png" alt="Extension Configuration" width="400">
+  <p><em>Simple configuration popup</em></p>
+</div>
 
-1. Haz clic en el ícono de la extensión en la barra de herramientas de Chrome
-2. Ingresa tu API Key de W2G
-3. Ingresa el Access Key de tu sala
-4. Haz clic en "Test Connection" para verificar que todo funcione
-5. Guarda la configuración
+## 🛠️ Development
 
-## Uso
+### Prerequisites
+- Chrome browser
+- Basic knowledge of Chrome Extension development
+- ImageMagick (optional, for icon generation)
 
-### En páginas de YouTube
-
-1. Ve a cualquier video de YouTube
-2. Verás un botón verde "SEND TO W2G" en los controles del reproductor
-3. Haz clic en el botón para enviar el video a tu sala W2G
-4. Recibirás una notificación confirmando que el video fue agregado
-
-### Menú contextual
-
-1. Haz clic derecho en cualquier enlace de YouTube
-2. Selecciona "Send to W2G" del menú contextual
-3. El video se agregará automáticamente a tu sala
-
-## Solución de problemas
-
-### El botón no aparece
-- Recarga la página de YouTube (F5)
-- Asegúrate de estar en una página de video (`/watch`)
-- Verifica que la extensión esté habilitada en `chrome://extensions/`
-
-### Error de conexión
-- Verifica que tu API key sea correcto
-- Asegúrate de que el access key de la sala sea válido
-- La sala debe existir y debes ser miembro de ella
-- Revisa que tu cuenta W2G tenga permisos para usar la API
-
-### Los íconos no se muestran
-- Asegúrate de haber convertido el archivo SVG a PNG en todos los tamaños requeridos
-- Los archivos deben estar en la carpeta `extension/icons/`
-
-## Desarrollo
-
-### Estructura del proyecto
-
+### Project Structure
 ```
 youtube-to-w2g/
-├── extension/
-│   ├── manifest.json       # Configuración de la extensión
-│   ├── popup.html         # UI del popup de configuración
-│   ├── js/
-│   │   ├── content.js     # Script que se inyecta en YouTube
-│   │   ├── background.js  # Service worker para llamadas API
-│   │   └── popup.js       # Lógica del popup
-│   ├── css/
-│   │   └── style.css      # Estilos del botón
-│   └── icons/             # Íconos de la extensión
-├── generate-icons.js      # Script para generar íconos
-└── README.md             # Este archivo
+├── manifest.json          # Extension manifest (V3)
+├── popup.html            # Configuration popup
+├── css/                  # Styles
+│   └── popup.css
+├── js/                   # JavaScript files
+│   ├── background.js     # Service worker
+│   ├── content.js        # Content script
+│   └── popup.js          # Popup logic
+├── icons/                # Extension icons
+│   └── icon.svg          # Source icon
+└── assets/               # Additional assets
+    └── y2w.svg          # Button icon
 ```
 
-### Tecnologías utilizadas
+### Making Changes
 
-- Chrome Extensions Manifest V3
-- JavaScript (ES6+)
-- Chrome Storage API
-- W2G API
+1. Edit the relevant files
+2. Reload the extension in `chrome://extensions/`
+3. Refresh YouTube to test changes
 
-## Seguridad
+### Building Icons
+If you modify the icon, regenerate PNG versions:
+```bash
+cd icons
+convert -density 300 icon.svg -resize 16x16 icon-16.png
+convert -density 300 icon.svg -resize 32x32 icon-32.png
+convert -density 300 icon.svg -resize 48x48 icon-48.png
+convert -density 300 icon.svg -resize 128x128 icon-128.png
+```
 
-- El API key se almacena localmente usando Chrome Storage Sync
-- Las llamadas a la API se realizan desde el background script, no desde las páginas web
-- No se exponen credenciales en el código fuente
+## 🤝 Contributing
 
-## Contribuciones
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
 
-Las contribuciones son bienvenidas. Por favor:
+### Quick Start
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-1. Fork el proyecto
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
+## 🐛 Bug Reports & Feature Requests
 
-## Licencia
+Found a bug or have a feature idea? Please check the [issue tracker](https://github.com/fedevgonzalez/youtube-to-w2g/issues) to see if it already exists. If not, feel free to [open a new issue](https://github.com/fedevgonzalez/youtube-to-w2g/issues/new)!
 
-Este proyecto está bajo la licencia MIT. Ver el archivo `LICENSE` para más detalles.
+## 📄 License
 
-## Agradecimientos
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-- [Watch2Gether](https://w2g.tv) por proporcionar la API
-- La comunidad de Chrome Extensions por la documentación
+## 🙏 Acknowledgments
+
+- [Watch2Gether](https://www.watch2gether.com/) for providing the API
+- Chrome Extension community for documentation and examples
+- All contributors who help improve this extension
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/fedevgonzalez/youtube-to-w2g/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/fedevgonzalez/youtube-to-w2g/discussions)
+
+---
+
+<div align="center">
+  Made with ❤️ by <a href="https://github.com/fedevgonzalez">fedevgonzalez</a> and contributors
+</div>
