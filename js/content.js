@@ -14,28 +14,111 @@ function getCurrentVideoUrl() {
   return null;
 }
 
+// Function to clean and validate video titles
+function cleanVideoTitle(title) {
+  if (!title) return 'YouTube Video';
+  
+  // Remove common suffixes
+  let cleanTitle = title.replace(/ - YouTube$/, '').trim();
+  
+  // Check if title is generic
+  const genericTitles = ['YouTube', 'YouTube Video', ''];
+  if (genericTitles.includes(cleanTitle)) {
+    return 'YouTube Video';
+  }
+  
+  // Check if it's just a channel name (various patterns)
+  const channelPatterns = [
+    /^by\s+/i,                          // Starts with "by "
+    /^[^-]+ - YouTube$/,                // Just channel name followed by " - YouTube"
+    /^@[\w-]+$/,                        // Just a handle like "@channelname"
+    /^[\w\s]+'s channel$/i,             // "Someone's channel"
+    /^[\w\s]+channel$/i,                // Ends with "channel"
+    /subscribers?$/i,                    // Contains subscriber count
+    /^\d+[\.\d]*[KMB]?\s+subscribers?$/i,  // Just subscriber count
+    /^Visit\s/i,                        // Starts with "Visit"
+    /^Go to\s/i,                        // Starts with "Go to"
+    /^Subscribe to\s/i,                 // Starts with "Subscribe to"
+    /^[\w\s]+·[\w\s]+subscribers?$/i,   // Name · X subscribers
+    /^[\w\s]+•[\w\s]+subscribers?$/i    // Name • X subscribers
+  ];
+  
+  for (const pattern of channelPatterns) {
+    if (pattern.test(cleanTitle)) {
+      console.log('W2G: Detected channel name pattern:', cleanTitle, 'matched by:', pattern);
+      return 'YouTube Video';
+    }
+  }
+  
+  // Additional check: if title is too short (likely just a channel name)
+  if (cleanTitle.length < 5 && !cleanTitle.includes(' ')) {
+    console.log('W2G: Title too short, likely channel name:', cleanTitle);
+    return 'YouTube Video';
+  }
+  
+  return cleanTitle;
+}
+
 // Function to get video title
 function getVideoTitle() {
   // Try multiple selectors for YouTube title
   const titleSelectors = [
-    'h1.ytd-video-primary-info-renderer',
-    'h1.title',
-    'h1 yt-formatted-string',
-    '#title h1',
-    'meta[property="og:title"]'
+    'h1.ytd-video-primary-info-renderer yt-formatted-string.ytd-video-primary-info-renderer',
+    'h1.title.style-scope.ytd-video-primary-info-renderer',
+    'ytd-watch-metadata h1 yt-formatted-string',
+    '#title h1 yt-formatted-string',
+    'h1.ytd-watch-metadata yt-formatted-string',
+    '#above-the-fold h1',
+    'meta[property="og:title"]',
+    'meta[name="title"]'
   ];
   
+  let title = null;
+  
+  // Try selectors
   for (const selector of titleSelectors) {
     const element = document.querySelector(selector);
     if (element) {
       if (element.tagName === 'META') {
-        return element.getAttribute('content');
+        title = element.getAttribute('content');
+      } else {
+        title = element.textContent.trim();
       }
-      return element.textContent.trim();
+      if (title && title.length > 0) break;
     }
   }
   
-  return document.title || 'YouTube Video';
+  // Fallback to document.title but clean it up
+  if (!title) {
+    title = document.title;
+  }
+  
+  // Use the clean function to validate the title
+  const cleanedTitle = cleanVideoTitle(title);
+  
+  // If we got a generic title, try alternative methods
+  if (cleanedTitle === 'YouTube Video' && title) {
+    // Try to get title from structured data
+    const structuredData = document.querySelector('script[type="application/ld+json"]');
+    if (structuredData) {
+      try {
+        const data = JSON.parse(structuredData.textContent);
+        if (data.name && data.name.length > 0) {
+          return cleanVideoTitle(data.name);
+        }
+      } catch (e) {
+        console.log('W2G: Could not parse structured data');
+      }
+    }
+    
+    // Last resort: try more specific selectors
+    const retryElement = document.querySelector('ytd-watch-metadata h1 yt-formatted-string, #title h1 yt-formatted-string');
+    if (retryElement && retryElement.textContent.trim()) {
+      return cleanVideoTitle(retryElement.textContent.trim());
+    }
+  }
+  
+  return cleanedTitle;
 }
 
 // Function to create the W2G button
@@ -124,6 +207,89 @@ function getW2GSvg() {
   return `<img src="${svgUrl}" style="width: 20px; height: 20px;" alt="W2G">`;
 }
 
+// Function to check if an element is likely a channel-related element
+function isChannelElement(element) {
+  if (!element) return false;
+  
+  // Check common channel element indicators
+  const channelIndicators = [
+    'channel-name',
+    'channel-info',
+    'byline',
+    'owner',
+    'author',
+    'creator',
+    'subscriber',
+    'channel-thumbnail',
+    'ytd-channel-name'
+  ];
+  
+  const elementClasses = element.className?.toLowerCase() || '';
+  const elementId = element.id?.toLowerCase() || '';
+  const parentClasses = element.parentElement?.className?.toLowerCase() || '';
+  const grandparentClasses = element.parentElement?.parentElement?.className?.toLowerCase() || '';
+  
+  // Check element and its ancestors
+  for (const indicator of channelIndicators) {
+    if (elementClasses.includes(indicator) || 
+        elementId.includes(indicator) || 
+        parentClasses.includes(indicator) ||
+        grandparentClasses.includes(indicator)) {
+      console.log('W2G: Detected channel element indicator:', indicator);
+      return true;
+    }
+  }
+  
+  // Additional check: if the element is within a channel info section
+  const channelSection = element.closest('ytd-channel-name, [id*="channel"], [class*="channel-name"]');
+  if (channelSection) {
+    console.log('W2G: Element is within channel section');
+    return true;
+  }
+  
+  return false;
+}
+
+// Function to get video title from container element
+function getVideoTitleFromContainer(container) {
+  // Priority order of selectors for video titles
+  const titleSelectors = [
+    // Most specific selectors first
+    '#video-title[aria-label]',
+    '#video-title-link[aria-label]',
+    'a#video-title',
+    'a#video-title-link',
+    'yt-formatted-string#video-title',
+    'span#video-title',
+    // Less specific but still good
+    'h3 a[aria-label]:not([href*="/channel/"]):not([href*="/@"])',
+    'h3.yt-lockup-view-model-wiz__title a[aria-label]',
+    // Generic but filtered
+    'a[aria-label]:not([href*="/channel/"]):not([href*="/@"])'
+  ];
+  
+  for (const selector of titleSelectors) {
+    const element = container.querySelector(selector);
+    if (element && !isChannelElement(element)) {
+      // Get aria-label first (usually complete title)
+      const ariaLabel = element.getAttribute('aria-label');
+      if (ariaLabel && !ariaLabel.toLowerCase().includes('channel')) {
+        console.log('W2G: Found title via aria-label with selector:', selector);
+        return ariaLabel;
+      }
+      
+      // Fallback to text content
+      const textContent = element.textContent?.trim();
+      if (textContent && !textContent.toLowerCase().includes('channel')) {
+        console.log('W2G: Found title via textContent with selector:', selector);
+        return textContent;
+      }
+    }
+  }
+  
+  return '';
+}
+
 // Function to extract video ID from various YouTube URL formats
 function extractVideoId(url) {
   // Handle different YouTube URL formats
@@ -168,9 +334,19 @@ function addButtonToThumbnail(thumbnailElement) {
       return;
     }
     
-    // Get video title from the title link
-    const titleElement = thumbnailElement.querySelector('a.yt-lockup-view-model-wiz__title');
-    const videoTitle = titleElement?.textContent?.trim() || titleElement?.getAttribute('aria-label') || 'YouTube Video';
+    // Get video title using the new helper function
+    console.log('W2G: Extracting title from yt-lockup-view-model...');
+    let videoTitle = getVideoTitleFromContainer(thumbnailElement);
+    
+    // Log what we found for debugging
+    console.log('W2G: yt-lockup title extraction:', {
+      selector: 'yt-lockup-view-model',
+      titleFound: videoTitle,
+      cleanedTitle: cleanVideoTitle(videoTitle)
+    });
+    
+    // Clean and validate title
+    videoTitle = cleanVideoTitle(videoTitle);
     
     // Create button
     const button = document.createElement('button');
@@ -268,9 +444,18 @@ function addButtonToThumbnail(thumbnailElement) {
     return;
   }
   
-  // Get video title
-  const titleElement = containerElement.querySelector('#video-title, #video-title-link, h3, h4, [title]');
-  const videoTitle = titleElement?.textContent?.trim() || titleElement?.title || 'YouTube Video';
+  // Get video title using the helper function
+  let videoTitle = getVideoTitleFromContainer(containerElement);
+  
+  // Log debugging info
+  console.log('W2G: ytd-thumbnail title extraction:', {
+    containerType: containerElement.tagName,
+    titleFound: videoTitle,
+    hasVideoTitleId: !!containerElement.querySelector('#video-title')
+  });
+  
+  // Clean and validate title
+  videoTitle = cleanVideoTitle(videoTitle);
   
   // Create button
   const button = document.createElement('button');
@@ -325,12 +510,12 @@ function addButtonToThumbnail(thumbnailElement) {
   // Append button to video element
   containerElement.appendChild(button);
   
-  console.log('W2G: Added button to', videoTitle);
+  console.log('W2G: Added button to ytd-thumbnail for', videoTitle, 'Container:', containerElement.tagName);
 }
 
 // Function to process all video thumbnails on the page
 function processVideoThumbnails() {
-  console.log('W2G: Processing video thumbnails');
+  console.log('W2G: Processing video thumbnails on:', window.location.href);
   
   // Selectors for different types of video containers on YouTube
   const selectors = [
