@@ -148,6 +148,91 @@ function extractVideoId(url) {
 
 // Function to add W2G button to video thumbnail
 function addButtonToThumbnail(thumbnailElement) {
+  // Handle new yt-lockup-view-model structure
+  if (thumbnailElement.tagName.toLowerCase() === 'yt-lockup-view-model') {
+    // Don't add button if already exists
+    if (thumbnailElement.querySelector('.w2g-thumbnail-button')) {
+      console.log('W2G: Button already exists for yt-lockup-view-model');
+      return;
+    }
+    
+    // Find the link element with video URL
+    const linkElement = thumbnailElement.querySelector('a.yt-lockup-view-model-wiz__content-image[href]');
+    if (!linkElement) {
+      console.log('W2G: No video link found in yt-lockup-view-model');
+      return;
+    }
+    
+    const videoUrl = linkElement.href;
+    const videoId = extractVideoId(videoUrl);
+    if (!videoId) {
+      console.log('W2G: Could not extract video ID from', videoUrl);
+      return;
+    }
+    
+    // Get video title from the title link
+    const titleElement = thumbnailElement.querySelector('a.yt-lockup-view-model-wiz__title');
+    const videoTitle = titleElement?.textContent?.trim() || titleElement?.getAttribute('aria-label') || 'YouTube Video';
+    
+    // Create button
+    const button = document.createElement('button');
+    button.className = 'w2g-thumbnail-button youtube yt-lockup';
+    button.title = 'Send to Watch2Gether';
+    button.innerHTML = getW2GSvg();
+    
+    // Find the thumbnail container to position the button
+    const thumbnailContainer = thumbnailElement.querySelector('.yt-lockup-view-model-wiz__content-image');
+    if (thumbnailContainer) {
+      // Make the container relative for absolute positioning
+      thumbnailContainer.style.position = 'relative';
+      
+      // Add click handler
+      button.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (button.classList.contains('processing')) return;
+        
+        button.classList.add('processing');
+        
+        const fullVideoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+        
+        try {
+          chrome.runtime.sendMessage({
+            action: 'sendToW2G',
+            videoUrl: fullVideoUrl,
+            videoTitle: videoTitle
+          }, (response) => {
+            button.classList.remove('processing');
+            
+            if (chrome.runtime.lastError) {
+              console.error('Chrome runtime error:', chrome.runtime.lastError);
+              showNotification('Extension error: ' + chrome.runtime.lastError.message, 'error');
+            } else if (response && response.success) {
+              showNotification('Video added to W2G!', 'success');
+              button.classList.add('success');
+              setTimeout(() => {
+                button.classList.remove('success');
+              }, 2000);
+            } else {
+              showNotification(response?.error || 'Failed to add video', 'error');
+            }
+          });
+        } catch (error) {
+          console.error('Error sending to W2G:', error);
+          showNotification('Error: ' + error.message, 'error');
+          button.classList.remove('processing');
+        }
+      });
+      
+      // Append button to thumbnail container
+      thumbnailContainer.appendChild(button);
+      console.log('W2G: Added button to yt-lockup-view-model for', videoTitle);
+    }
+    
+    return;
+  }
+  
   // For ytd-thumbnail elements, we need to find the parent container
   let containerElement = thumbnailElement;
   if (thumbnailElement.tagName.toLowerCase() === 'ytd-thumbnail') {
@@ -258,7 +343,8 @@ function processVideoThumbnails() {
     'ytm-video-card-renderer',         // Mobile web
     'ytm-compact-video-renderer',      // Mobile web compact
     'ytd-reel-item-renderer',          // Shorts
-    'ytd-thumbnail'                    // Video thumbnails in watch page sidebar
+    'ytd-thumbnail',                   // Video thumbnails in watch page sidebar
+    'yt-lockup-view-model'             // New YouTube structure for recommendations
   ];
   
   // Try each selector individually to debug
@@ -326,7 +412,7 @@ function setupThumbnailObserver() {
   }
   
   // Create observer for dynamically loaded thumbnails
-  thumbnailObserver = new MutationObserver((mutations) => {
+  thumbnailObserver = new MutationObserver(() => {
     // Debounce processing to avoid excessive calls
     clearTimeout(thumbnailObserver.timeout);
     thumbnailObserver.timeout = setTimeout(() => {
@@ -361,7 +447,7 @@ function init() {
   setupThumbnailObserver();
   
   // Set up mutation observer for YouTube's dynamic content
-  const observer = new MutationObserver((mutations) => {
+  const observer = new MutationObserver(() => {
     // Check if URL changed (YouTube is a single-page app)
     if (window.location.pathname.includes('/watch')) {
       injectButton();
