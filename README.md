@@ -1,7 +1,7 @@
 # YouTube to Watch2Gether (Y2W)
 
 <div align="center">
-  <img src="icons/icon-128.png" alt="Y2W Logo" width="128" height="128">
+  <img src="icons/icon128.png" alt="Y2W Logo" width="128" height="128">
   
   **Send YouTube videos to your Watch2Gether room with a single click!**
   
