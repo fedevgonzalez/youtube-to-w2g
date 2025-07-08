@@ -1,5 +1,4 @@
-// Content script for Send to W2G extension
-// Runs on YouTube pages to inject the "Send to W2G" button
+// Simplified content script for Send to W2G extension
 
 let w2gButton = null;
 let isProcessing = false;
@@ -16,8 +15,26 @@ function getCurrentVideoUrl() {
 
 // Function to get video title
 function getVideoTitle() {
-  const titleElement = document.querySelector('h1.ytd-video-primary-info-renderer');
-  return titleElement ? titleElement.textContent.trim() : 'YouTube Video';
+  // Try multiple selectors for YouTube title
+  const titleSelectors = [
+    'h1.ytd-video-primary-info-renderer',
+    'h1.title',
+    'h1 yt-formatted-string',
+    '#title h1',
+    'meta[property="og:title"]'
+  ];
+  
+  for (const selector of titleSelectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      if (element.tagName === 'META') {
+        return element.getAttribute('content');
+      }
+      return element.textContent.trim();
+    }
+  }
+  
+  return document.title || 'YouTube Video';
 }
 
 // Function to create the W2G button
@@ -55,35 +72,32 @@ async function handleSendToW2G(e) {
   w2gButton.classList.add('processing');
   
   try {
-    // Get configuration from storage
-    const config = await chrome.storage.sync.get(['roomKey']);
+    console.log('Sending video to W2G:', videoUrl);
     
-    if (!config.roomKey) {
-      showNotification('Please configure your W2G room key first', 'error');
-      chrome.runtime.sendMessage({ action: 'openPopup' });
-      return;
-    }
-    
-    // Send message to background script
-    const response = await chrome.runtime.sendMessage({
+    chrome.runtime.sendMessage({
       action: 'sendToW2G',
       videoUrl: videoUrl,
       videoTitle: getVideoTitle()
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('Chrome runtime error:', chrome.runtime.lastError);
+        showNotification('Extension error: ' + chrome.runtime.lastError.message, 'error');
+      } else if (response && response.success) {
+        showNotification('Video added to W2G!', 'success');
+        w2gButton.classList.add('success');
+        setTimeout(() => {
+          w2gButton.classList.remove('success');
+        }, 2000);
+      } else {
+        showNotification(response?.error || 'Failed to add video', 'error');
+      }
+      isProcessing = false;
+      w2gButton.classList.remove('processing');
     });
     
-    if (response.success) {
-      showNotification('Video added to W2G!', 'success');
-      w2gButton.classList.add('success');
-      setTimeout(() => {
-        w2gButton.classList.remove('success');
-      }, 2000);
-    } else {
-      showNotification(response.error || 'Failed to add video', 'error');
-    }
   } catch (error) {
     console.error('Error sending to W2G:', error);
     showNotification('Error: ' + error.message, 'error');
-  } finally {
     isProcessing = false;
     w2gButton.classList.remove('processing');
   }
@@ -151,6 +165,8 @@ function handleNavigation() {
 
 // Initialize the extension
 function init() {
+  console.log('Send to W2G extension loaded');
+  
   // Initial injection
   injectButton();
   

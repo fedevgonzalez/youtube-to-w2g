@@ -3,11 +3,15 @@
 
 document.addEventListener('DOMContentLoaded', async () => {
   const form = document.getElementById('settingsForm');
+  const apiKeyInput = document.getElementById('apiKey');
   const roomKeyInput = document.getElementById('roomKey');
   const statusDiv = document.getElementById('status');
   
   // Load existing settings
-  const settings = await chrome.storage.sync.get(['roomKey']);
+  const settings = await chrome.storage.sync.get(['apiKey', 'roomKey']);
+  if (settings.apiKey) {
+    apiKeyInput.value = settings.apiKey;
+  }
   if (settings.roomKey) {
     roomKeyInput.value = settings.roomKey;
   }
@@ -16,18 +20,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     
+    const apiKey = apiKeyInput.value.trim();
     const roomKey = roomKeyInput.value.trim();
     
-    if (!roomKey) {
-      showStatus('Please enter a room access key', 'error');
+    if (!apiKey) {
+      showStatus('Please enter your API key', 'error');
       return;
     }
     
     try {
       // Save settings
       await chrome.storage.sync.set({
-        roomKey: roomKey,
-        useTabCommunication: true // Always use tab communication
+        apiKey: apiKey,
+        roomKey: roomKey
       });
       
       showStatus('Settings saved successfully!', 'success');
@@ -56,13 +61,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
   
-  // Add input validation
-  roomKeyInput.addEventListener('input', (e) => {
-    // Extract access_key if user pastes full URL
-    const value = e.target.value;
-    const match = value.match(/access_key=([a-zA-Z0-9]+)/);
-    if (match) {
-      e.target.value = match[1];
-    }
-  });
 });

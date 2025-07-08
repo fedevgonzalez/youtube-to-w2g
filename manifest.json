@@ -5,13 +5,11 @@
   "description": "Quickly send YouTube videos to your Watch2Gether room",
   "permissions": [
     "storage",
-    "activeTab",
-    "tabs",
-    "notifications",
-    "contextMenus"
+    "tabs"
   ],
   "host_permissions": [
-    "https://w2g.tv/*"
+    "https://w2g.tv/*",
+    "https://api.w2g.tv/*"
   ],
   "background": {
     "service_worker": "js/background.js"
@@ -21,11 +19,6 @@
       "matches": ["*://*.youtube.com/*"],
       "js": ["js/content.js"],
       "css": ["css/style.css"],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": ["*://w2g.tv/*"],
-      "js": ["js/w2g-content.js"],
       "run_at": "document_idle"
     }
   ],

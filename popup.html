@@ -182,9 +182,15 @@
     
     <form id="settingsForm">
       <div class="form-group">
-        <label for="roomKey">Room Access Key</label>
-        <input type="text" id="roomKey" name="roomKey" placeholder="e.g., gbzifrudabr50l01gguru8" required>
-        <div class="help-text">Found in your W2G room URL after "access_key="</div>
+        <label for="apiKey">W2G API Key</label>
+        <input type="text" id="apiKey" name="apiKey" placeholder="Your W2G API key" required>
+        <div class="help-text">Get your API key from W2G account settings</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="roomKey">Room Stream Key (Optional)</label>
+        <input type="text" id="roomKey" name="roomKey" placeholder="Leave empty to create new rooms">
+        <div class="help-text">If provided, tries to use existing room (must be member)</div>
       </div>
       
       <div class="button-group">
@@ -197,11 +203,14 @@
     <div class="instructions">
       <h3>How to use this extension:</h3>
       <ol>
-        <li>Open your <a href="https://w2g.tv" target="_blank">Watch2Gether</a> room</li>
-        <li>Copy the access_key from the room URL</li>
-        <li>Keep the W2G tab open while browsing YouTube</li>
-        <li>Click "Send to W2G" on any YouTube video to add it to your playlist</li>
+        <li>Get your API key from Watch2Gether account settings</li>
+        <li>Save your API key in this extension</li>
+        <li>Click "Send to W2G" on any YouTube video</li>
+        <li>The extension will create a new room or use your existing one</li>
       </ol>
+      <p style="margin-top: 10px; font-size: 12px; color: #666;">
+        <strong>Note:</strong> If you provide a room key, you must be a member of that room for the API to work.
+      </p>
     </div>
   </div>
   
