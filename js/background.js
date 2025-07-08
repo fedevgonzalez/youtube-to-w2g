@@ -67,7 +67,7 @@ async function handleSendToW2GTab(videoUrl, videoTitle) {
     
     // Send the video to the matching W2G tab
     const response = await chrome.tabs.sendMessage(matchingTab.id, {
-      action: 'addVideoToW2G',z
+      action: 'addVideoToW2G',
       data: {
         videoUrl: videoUrl,
         videoTitle: videoTitle,
