@@ -51,6 +51,11 @@ async function handleSendToW2G(videoUrl, videoTitle) {
       
       const roomData = await createResponse.json();
       console.log('Created room:', roomData);
+      
+      if (!roomData || !roomData.streamkey) {
+        throw new Error('Invalid room creation response - missing streamkey');
+      }
+      
       roomKey = roomData.streamkey;
       
       // Save the new room key
@@ -63,12 +68,17 @@ async function handleSendToW2G(videoUrl, videoTitle) {
       return { success: true, message: 'Created new W2G room with video!' };
       
     } else {
-      // Try to update existing room
-      const apiUrl = `https://api.w2g.tv/rooms/${roomKey}/sync_update`;
+      // Add video to existing room's playlist
+      const apiUrl = `https://api.w2g.tv/rooms/${roomKey}/playlists/current/playlist_items/sync_update`;
       
       const requestBody = {
         w2g_api_key: config.apiKey,
-        item_url: videoUrl
+        add_items: [
+          {
+            url: videoUrl,
+            title: videoTitle
+          }
+        ]
       };
       
       console.log('API Request:', apiUrl, requestBody);
@@ -97,8 +107,21 @@ async function handleSendToW2G(videoUrl, videoTitle) {
         throw new Error(`W2G API error: ${response.status} - ${errorText}`);
       }
       
-      const result = await response.json();
-      console.log('W2G API response:', result);
+      // Handle response - it might be empty or not JSON
+      let result = null;
+      const contentType = response.headers.get('content-type');
+      const contentLength = response.headers.get('content-length');
+      
+      if (contentType && contentType.includes('application/json') && contentLength !== '0') {
+        try {
+          result = await response.json();
+          console.log('W2G API response:', result);
+        } catch (jsonError) {
+          console.log('Response is not valid JSON, but request was successful');
+        }
+      } else {
+        console.log('Response has no JSON content, but request was successful');
+      }
       
       // Find and focus W2G tab if it exists
       const tabs = await chrome.tabs.query({ url: '*://w2g.tv/*' });
@@ -108,7 +131,7 @@ async function handleSendToW2G(videoUrl, videoTitle) {
         await chrome.tabs.update(w2gTab.id, { active: true });
       }
       
-      return { success: true, message: 'Video sent to W2G!' };
+      return { success: true, message: 'Video added to W2G playlist!' };
     }
     
   } catch (error) {
