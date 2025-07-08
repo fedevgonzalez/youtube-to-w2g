@@ -1,0 +1,157 @@
+/* Styles for Send to W2G button */
+
+/* Main button styling */
+.w2g-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 0 12px !important;
+  height: 36px !important;
+  background-color: #4CAF50 !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 2px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  font-family: Roboto, Arial, sans-serif !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  margin-left: 8px !important;
+  position: relative !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+/* Hover state */
+.w2g-button:hover {
+  background-color: #45a049 !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+}
+
+/* Active/clicked state */
+.w2g-button:active {
+  background-color: #3d8b40 !important;
+  transform: scale(0.98) !important;
+}
+
+/* Processing state */
+.w2g-button.processing {
+  background-color: #ff9800 !important;
+  cursor: wait !important;
+  pointer-events: none !important;
+}
+
+.w2g-button.processing::after {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: -100% !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent) !important;
+  animation: w2g-loading 1.5s infinite !important;
+}
+
+/* Success state */
+.w2g-button.success {
+  background-color: #2196F3 !important;
+}
+
+/* Button icon */
+.w2g-button svg {
+  width: 20px !important;
+  height: 20px !important;
+  fill: currentColor !important;
+  flex-shrink: 0 !important;
+}
+
+/* Button text */
+.w2g-button span {
+  display: inline-block !important;
+}
+
+/* Notification styling */
+.w2g-notification {
+  position: fixed !important;
+  bottom: 20px !important;
+  left: 20px !important;
+  background-color: #333 !important;
+  color: white !important;
+  padding: 12px 20px !important;
+  border-radius: 4px !important;
+  font-size: 14px !important;
+  font-family: Roboto, Arial, sans-serif !important;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+  z-index: 999999 !important;
+  transform: translateY(100px) !important;
+  opacity: 0 !important;
+  transition: all 0.3s ease !important;
+  max-width: 300px !important;
+}
+
+/* Notification visible state */
+.w2g-notification.show {
+  transform: translateY(0) !important;
+  opacity: 1 !important;
+}
+
+/* Success notification */
+.w2g-notification.success {
+  background-color: #4CAF50 !important;
+}
+
+/* Error notification */
+.w2g-notification.error {
+  background-color: #f44336 !important;
+}
+
+/* Info notification */
+.w2g-notification.info {
+  background-color: #2196F3 !important;
+}
+
+/* Loading animation */
+@keyframes w2g-loading {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Responsive adjustments for smaller players */
+@media (max-width: 640px) {
+  .w2g-button span {
+    display: none !important;
+  }
+  
+  .w2g-button {
+    padding: 0 8px !important;
+    gap: 0 !important;
+  }
+}
+
+/* Dark theme adjustments (YouTube dark mode) */
+html[dark] .w2g-button,
+[dark] .w2g-button {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
+}
+
+/* Ensure button stays visible in fullscreen */
+.ytp-fullscreen .w2g-button {
+  z-index: 60 !important;
+}
+
+/* Position adjustment for different player states */
+.ytp-autohide .w2g-button {
+  opacity: 0 !important;
+  transition: opacity 0.25s ease !important;
+}
+
+.ytp-autohide:hover .w2g-button,
+.ytp-autohide.ytp-user-hover .w2g-button {
+  opacity: 1 !important;
+}
