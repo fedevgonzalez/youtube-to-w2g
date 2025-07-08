@@ -7,7 +7,7 @@
   gap: 6px !important;
   padding: 10px!important;
   height: 36px !important;
-  background-color: #4CAF50 !important;
+  background-color: transparent !important;
   color: white !important;
   border: none !important;
   border-radius: 2px !important;
@@ -22,23 +22,23 @@
   white-space: nowrap !important;
   text-transform: uppercase !important;
   letter-spacing: 0.5px !important;
+  height: 100% !important;
 }
 
 /* Hover state */
 .w2g-button:hover {
-  background-color: #45a049 !important;
+  transform: scale(1.1) !important;
   box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
 }
 
 /* Active/clicked state */
 .w2g-button:active {
-  background-color: #3d8b40 !important;
   transform: scale(0.98) !important;
 }
 
 /* Processing state */
 .w2g-button.processing {
-  background-color: #ff9800 !important;
+  background-color: rgba(255, 153, 0, 0.3) !important;
   cursor: wait !important;
   pointer-events: none !important;
 }
@@ -56,7 +56,7 @@
 
 /* Success state */
 .w2g-button.success {
-  background-color: #2196F3 !important;
+  background-color: rgba(33, 149, 243, 0.3) !important;
 }
 
 /* Button icon */
@@ -202,7 +202,6 @@ yt-lockup-view-model:hover .w2g-thumbnail-button {
 
 /* Hover effect for thumbnail button */
 .w2g-thumbnail-button:hover {
-  background-color: rgba(76, 175, 80, 0.9) !important;
   transform: scale(1.1) !important;
 }
 
@@ -218,7 +217,7 @@ yt-lockup-view-model:hover .w2g-thumbnail-button {
 /* Processing state for thumbnail button */
 .w2g-thumbnail-button.processing {
   pointer-events: none !important;
-  background-color: rgba(255, 152, 0, 0.9) !important;
+  background-color: rgba(255, 152, 0, 0.3) !important;
 }
 
 .w2g-thumbnail-button.processing svg {
@@ -227,7 +226,7 @@ yt-lockup-view-model:hover .w2g-thumbnail-button {
 
 /* Success state for thumbnail button */
 .w2g-thumbnail-button.success {
-  background-color: rgba(33, 150, 243, 0.9) !important;
+  background-color: rgba(33, 150, 243, 0.3) !important;
 }
 
 .w2g-thumbnail-button.success svg {

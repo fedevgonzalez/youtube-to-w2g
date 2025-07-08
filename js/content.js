@@ -120,7 +120,7 @@ function showNotification(message, type = 'info') {
 
 // Function to get W2G logo SVG (using external file)
 function getW2GSvg() {
-  const svgUrl = chrome.runtime.getURL('icons/w2g.svg');
+  const svgUrl = chrome.runtime.getURL('icons/w2y.svg');
   return `<img src="${svgUrl}" style="width: 20px; height: 20px;" alt="W2G">`;
 }
 

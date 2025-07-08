@@ -39,7 +39,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["icons/w2g.svg"],
+      "resources": ["icons/w2y.svg"],
       "matches": ["*://*.youtube.com/*"]
     }
   ]

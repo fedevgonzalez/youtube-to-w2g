@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+    <defs>
+        <clipPath id="rounded-rect">
+            <rect width="48" height="48" rx="8" ry="8"/>
+        </clipPath>
+    </defs>
+    
+    <g clip-path="url(#rounded-rect)">
+        <!-- W2G half (top-left) -->
+        <path d="M0 0 L48 0 L48 48 L0 48 Z" fill="#FDBD00"/>
+        
+        <!-- YouTube half (bottom-right) -->
+        <path d="M0 0 L48 48 L0 48 Z" fill="#FF0033"/>
+        
+        <!-- YouTube play button (top-right) -->
+        <path d="M40 12L32 7L32 17L40 12Z" fill="white" opacity="0.9"/>
+        
+        <!-- YouTube play button (bottom-left) -->
+        <path d="M18 36L10 31L10 41L18 36Z" fill="white" opacity="0.9"/>
+        
+        <!-- Sync arrow in the middle -->
+        <g transform="translate(24, 24)">
+            <!-- Circle background for arrow -->
+            <circle cx="0" cy="0" r="8" fill="white" opacity="0.95"/>
+            <!-- Simple arrow pointing right -->
+            <path d="M-5 0L4 0M4 0L0 -4M4 0L0 4" 
+                  fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
+    </g>
+</svg>
