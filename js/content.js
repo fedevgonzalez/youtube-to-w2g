@@ -1,10 +1,23 @@
-// Simplified content script for Send to W2G extension
+/**
+ * Content Script for YouTube to Watch2Gether Extension
+ * 
+ * This script is injected into YouTube pages and handles:
+ * - Creating and managing the "SEND TO W2G" button in the YouTube player
+ * - Extracting video information (URL and title)
+ * - Communicating with the background script to send videos to W2G
+ * - Monitoring for YouTube's dynamic content changes
+ * 
+ * @file content.js
+ */
 
 let w2gButton = null;
 let isProcessing = false;
 let thumbnailObserver = null;
 
-// Function to get the current video URL
+/**
+ * Extracts the current YouTube video URL from the page
+ * @returns {string|null} The full YouTube video URL or null if not on a video page
+ */
 function getCurrentVideoUrl() {
   const urlParams = new URLSearchParams(window.location.search);
   const videoId = urlParams.get('v');
@@ -14,7 +27,16 @@ function getCurrentVideoUrl() {
   return null;
 }
 
-// Function to clean and validate video titles
+/**
+ * Cleans and validates video titles, filtering out channel names and generic titles
+ * 
+ * This function handles various edge cases where YouTube might show channel names
+ * or generic text instead of actual video titles. It uses multiple regex patterns
+ * to detect and filter out non-video-title content.
+ * 
+ * @param {string} title - The raw title text extracted from YouTube
+ * @returns {string} A cleaned title or 'YouTube Video' as fallback
+ */
 function cleanVideoTitle(title) {
   if (!title) return 'YouTube Video';
   

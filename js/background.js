@@ -1,5 +1,13 @@
-// Background service worker for Send to W2G extension
-// Uses W2G API to add videos to playlist
+/**
+ * Background Service Worker for YouTube to Watch2Gether Extension
+ * 
+ * Handles communication with the Watch2Gether API to:
+ * - Create new W2G rooms when needed
+ * - Add videos to existing W2G rooms
+ * - Manage API authentication and error handling
+ * 
+ * @file background.js
+ */
 
 // Listen for messages from content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -11,7 +19,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-// Function to handle sending video to W2G via API
+/**
+ * Sends a video to Watch2Gether room via API
+ * 
+ * This function handles both creating new rooms and adding videos to existing rooms.
+ * It manages the complete API flow including authentication, error handling, and retries.
+ * 
+ * @param {string} videoUrl - The YouTube video URL to send
+ * @param {string} videoTitle - The title of the video
+ * @returns {Promise<Object>} Result object with success status and room URL/error message
+ * @throws {Error} If API key is missing or API requests fail
+ */
 async function handleSendToW2G(videoUrl, videoTitle) {
   try {
     console.log('Sending video to W2G via API:', videoUrl);

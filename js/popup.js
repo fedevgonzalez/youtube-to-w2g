@@ -1,5 +1,13 @@
-// Popup script for Send to W2G extension
-// Handles configuration UI
+/**
+ * Popup Script for YouTube to Watch2Gether Extension
+ * 
+ * Manages the extension's configuration popup interface:
+ * - Loading and saving API credentials
+ * - Validating user input
+ * - Providing visual feedback for save operations
+ * 
+ * @file popup.js
+ */
 
 document.addEventListener('DOMContentLoaded', async () => {
   const form = document.getElementById('settingsForm');
@@ -48,7 +56,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
   
-  // Function to show status messages
+  /**
+   * Displays status messages in the popup UI
+   * 
+   * @param {string} message - The message to display
+   * @param {string} type - The message type ('success' or 'error')
+   */
   function showStatus(message, type) {
     statusDiv.textContent = message;
     statusDiv.className = `status ${type}`;
