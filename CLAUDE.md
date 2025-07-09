@@ -13,12 +13,18 @@ youtube-to-w2g/
 ├── css/
 │   ├── popup.css      # Styles for the extension popup
 │   └── style.css      # Styles for the Y2W button injected into YouTube
-├── icons/
-│   ├── y2w.svg        # Main SVG icon
-│   ├── icon16.png     # 16x16 icon
-│   ├── icon32.png     # 32x32 icon
-│   ├── icon48.png     # 48x48 icon
-│   └── icon128.png    # 128x128 icon
+├── assets/
+│   ├── icons/
+│   │   ├── y2w.svg        # Main SVG icon
+│   │   ├── icon16.png     # 16x16 icon
+│   │   ├── icon32.png     # 32x32 icon
+│   │   ├── icon48.png     # 48x48 icon
+│   │   └── icon128.png    # 128x128 icon
+│   └── images/
+│       ├── promo-banner.gif
+│       ├── promo-banner.png
+│       ├── promo-small.gif
+│       └── promo-small.png
 ├── js/
 │   ├── background.js  # Service worker for API communication
 │   ├── content.js     # Content script for YouTube integration
@@ -33,7 +39,7 @@ This is a pure Chrome extension project without a build system. Key development 
 
 ```bash
 # Generate icon files from SVG (requires ImageMagick)
-cd icons
+cd assets/icons
 convert -density 300 y2w.svg -resize 16x16 icon16.png
 convert -density 300 y2w.svg -resize 32x32 icon32.png
 convert -density 300 y2w.svg -resize 48x48 icon48.png
@@ -76,7 +82,7 @@ The extension follows Chrome Extension Manifest V3 architecture with three main 
 - **Content Script Matching**: Runs on all YouTube URLs (`*://*.youtube.com/*`)
 - **Content Script CSS**: Injects `css/style.css` for button styling
 - **API Integration**: Requires W2G API key and room access key for authentication
-- **Web Accessible Resources**: Makes `icons/y2w.svg` available to content scripts
+- **Web Accessible Resources**: Makes `assets/icons/y2w.svg` available to content scripts
 
 ## Testing Considerations
 

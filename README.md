@@ -1,7 +1,7 @@
 # YouTube to Watch2Gether (Y2W)
 
 <div align="center">
-  <img src="icons/icon128.png" alt="Y2W Logo" width="128" height="128">
+  <img src="assets/icons/icon128.png" alt="Y2W Logo" width="128" height="128">
   
   **Send YouTube videos to your Watch2Gether room with a single click!**
   
@@ -12,6 +12,10 @@
   [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
   [![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-yellow?style=flat-square&logo=javascript)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
   [![Manifest](https://img.shields.io/badge/Manifest-V3-green?style=flat-square)](https://developer.chrome.com/docs/extensions/mv3/)
+</div>
+
+<div align="center">
+  <img src="assets/images/promo-banner.gif" alt="Y2W Promotional Banner" width="100%" style="max-width: 800px; margin: 20px 0;">
 </div>
 
 ## 📖 Why This Exists
@@ -105,8 +109,10 @@ youtube-to-w2g/
 │   ├── background.js     # Service worker
 │   ├── content.js        # Content script
 │   └── popup.js          # Popup logic
-└── icons/                # Extension icons
-    └── y2w.svg           # Source icon
+└── assets/               # Resource files
+    ├── icons/            # Extension icons
+    │   └── y2w.svg       # Source icon
+    └── images/           # Promotional images
 ```
 
 ### Making Changes

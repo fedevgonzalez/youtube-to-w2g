@@ -99,8 +99,9 @@ youtube-to-w2g/
 │   ├── background.js # Service worker
 │   ├── content.js    # YouTube page script
 │   └── popup.js      # Popup logic
-├── icons/            # Extension icons
-└── assets/           # Additional resources
+└── assets/           # Resources directory
+    ├── icons/        # Extension icons
+    └── images/       # Promotional images
 ```
 
 ### Testing Your Changes
