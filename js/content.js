@@ -67,14 +67,12 @@ function cleanVideoTitle(title) {
   
   for (const pattern of channelPatterns) {
     if (pattern.test(cleanTitle)) {
-      console.log('W2G: Detected channel name pattern:', cleanTitle, 'matched by:', pattern);
       return 'YouTube Video';
     }
   }
   
   // Additional check: if title is too short (likely just a channel name)
   if (cleanTitle.length < 5 && !cleanTitle.includes(' ')) {
-    console.log('W2G: Title too short, likely channel name:', cleanTitle);
     return 'YouTube Video';
   }
   
@@ -129,7 +127,7 @@ function getVideoTitle() {
           return cleanVideoTitle(data.name);
         }
       } catch (e) {
-        console.log('W2G: Could not parse structured data');
+        console.error('[Y2W] Could not parse structured data');
       }
     }
     
@@ -163,41 +161,67 @@ async function handleSendToW2G(e) {
   
   if (isProcessing) return;
   
-  const videoUrl = getCurrentVideoUrl();
-  if (!videoUrl) {
-    showNotification('Could not get video URL', 'error');
-    return;
-  }
-  
   isProcessing = true;
   w2gButton.classList.add('processing');
   
   try {
-    console.log('Sending video to W2G:', videoUrl);
-    
-    chrome.runtime.sendMessage({
-      action: 'sendToW2G',
-      videoUrl: videoUrl,
-      videoTitle: getVideoTitle()
-    }, (response) => {
+    // First check if API key is valid
+    chrome.runtime.sendMessage({ action: 'checkApiKeyValid' }, (response) => {
       if (chrome.runtime.lastError) {
-        console.error('Chrome runtime error:', chrome.runtime.lastError);
+        console.error('[Y2W] Chrome runtime error:', chrome.runtime.lastError);
         showNotification('Extension error: ' + chrome.runtime.lastError.message, 'error');
-      } else if (response && response.success) {
-        showNotification('Video added to W2G!', 'success');
-        w2gButton.classList.add('success');
-        setTimeout(() => {
-          w2gButton.classList.remove('success');
-        }, 2000);
-      } else {
-        showNotification(response?.error || 'Failed to add video', 'error');
+        isProcessing = false;
+        w2gButton.classList.remove('processing');
+        return;
       }
-      isProcessing = false;
-      w2gButton.classList.remove('processing');
+      
+      if (!response || !response.valid) {
+        // No valid API key - open popup
+        showNotification('Please configure your W2G API key', 'error');
+        isProcessing = false;
+        w2gButton.classList.remove('processing');
+        
+        // Try to open popup
+        chrome.runtime.sendMessage({ action: 'openPopup' }, (popupResponse) => {
+          if (chrome.runtime.lastError) {
+            // If popup can't be opened programmatically, open options page
+            window.open(chrome.runtime.getURL('popup.html'), '_blank', 'width=400,height=500');
+          }
+        });
+        return;
+      }
+      
+      // API key is valid, proceed with sending video
+      const videoUrl = getCurrentVideoUrl();
+      if (!videoUrl) {
+        showNotification('Could not get video URL', 'error');
+        isProcessing = false;
+        w2gButton.classList.remove('processing');
+        return;
+      }
+      
+      chrome.runtime.sendMessage({
+        action: 'sendToW2G',
+        videoUrl: videoUrl,
+        videoTitle: getVideoTitle()
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          showNotification('Extension error: ' + chrome.runtime.lastError.message, 'error');
+        } else if (response && response.success) {
+          showNotification('Video added to W2G!', 'success');
+          w2gButton.classList.add('success');
+          setTimeout(() => {
+            w2gButton.classList.remove('success');
+          }, 2000);
+        } else {
+          showNotification(response?.error || 'Failed to add video', 'error');
+        }
+        isProcessing = false;
+        w2gButton.classList.remove('processing');
+      });
     });
     
   } catch (error) {
-    console.error('Error sending to W2G:', error);
     showNotification('Error: ' + error.message, 'error');
     isProcessing = false;
     w2gButton.classList.remove('processing');
@@ -257,7 +281,6 @@ function isChannelElement(element) {
         elementId.includes(indicator) || 
         parentClasses.includes(indicator) ||
         grandparentClasses.includes(indicator)) {
-      console.log('W2G: Detected channel element indicator:', indicator);
       return true;
     }
   }
@@ -265,7 +288,6 @@ function isChannelElement(element) {
   // Additional check: if the element is within a channel info section
   const channelSection = element.closest('ytd-channel-name, [id*="channel"], [class*="channel-name"]');
   if (channelSection) {
-    console.log('W2G: Element is within channel section');
     return true;
   }
   
@@ -296,14 +318,12 @@ function getVideoTitleFromContainer(container) {
       // Get aria-label first (usually complete title)
       const ariaLabel = element.getAttribute('aria-label');
       if (ariaLabel && !ariaLabel.toLowerCase().includes('channel')) {
-        console.log('W2G: Found title via aria-label with selector:', selector);
         return ariaLabel;
       }
       
       // Fallback to text content
       const textContent = element.textContent?.trim();
       if (textContent && !textContent.toLowerCase().includes('channel')) {
-        console.log('W2G: Found title via textContent with selector:', selector);
         return textContent;
       }
     }
@@ -338,34 +358,23 @@ function addButtonToThumbnail(thumbnailElement) {
   if (thumbnailElement.tagName.toLowerCase() === 'yt-lockup-view-model') {
     // Don't add button if already exists
     if (thumbnailElement.querySelector('.w2g-thumbnail-button')) {
-      console.log('W2G: Button already exists for yt-lockup-view-model');
       return;
     }
     
     // Find the link element with video URL
     const linkElement = thumbnailElement.querySelector('a.yt-lockup-view-model-wiz__content-image[href]');
     if (!linkElement) {
-      console.log('W2G: No video link found in yt-lockup-view-model');
       return;
     }
     
     const videoUrl = linkElement.href;
     const videoId = extractVideoId(videoUrl);
     if (!videoId) {
-      console.log('W2G: Could not extract video ID from', videoUrl);
       return;
     }
     
     // Get video title using the new helper function
-    console.log('W2G: Extracting title from yt-lockup-view-model...');
     let videoTitle = getVideoTitleFromContainer(thumbnailElement);
-    
-    // Log what we found for debugging
-    console.log('W2G: yt-lockup title extraction:', {
-      selector: 'yt-lockup-view-model',
-      titleFound: videoTitle,
-      cleanedTitle: cleanVideoTitle(videoTitle)
-    });
     
     // Clean and validate title
     videoTitle = cleanVideoTitle(videoTitle);
@@ -391,39 +400,61 @@ function addButtonToThumbnail(thumbnailElement) {
         
         button.classList.add('processing');
         
-        const fullVideoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-        
-        try {
-          chrome.runtime.sendMessage({
-            action: 'sendToW2G',
-            videoUrl: fullVideoUrl,
-            videoTitle: videoTitle
-          }, (response) => {
+        // First check if API key is valid
+        chrome.runtime.sendMessage({ action: 'checkApiKeyValid' }, (response) => {
+          if (chrome.runtime.lastError) {
+            showNotification('Extension error: ' + chrome.runtime.lastError.message, 'error');
+            button.classList.remove('processing');
+            return;
+          }
+          
+          if (!response || !response.valid) {
+            // No valid API key - open popup
+            showNotification('Please configure your W2G API key', 'error');
             button.classList.remove('processing');
             
-            if (chrome.runtime.lastError) {
-              console.error('Chrome runtime error:', chrome.runtime.lastError);
-              showNotification('Extension error: ' + chrome.runtime.lastError.message, 'error');
-            } else if (response && response.success) {
-              showNotification('Video added to W2G!', 'success');
-              button.classList.add('success');
-              setTimeout(() => {
-                button.classList.remove('success');
-              }, 2000);
-            } else {
-              showNotification(response?.error || 'Failed to add video', 'error');
-            }
-          });
-        } catch (error) {
-          console.error('Error sending to W2G:', error);
-          showNotification('Error: ' + error.message, 'error');
-          button.classList.remove('processing');
-        }
+            // Try to open popup
+            chrome.runtime.sendMessage({ action: 'openPopup' }, (popupResponse) => {
+              if (chrome.runtime.lastError) {
+                // If popup can't be opened programmatically, open options page
+                window.open(chrome.runtime.getURL('popup.html'), '_blank', 'width=400,height=500');
+              }
+            });
+            return;
+          }
+          
+          // API key is valid, proceed
+          const fullVideoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+          
+          try {
+            chrome.runtime.sendMessage({
+              action: 'sendToW2G',
+              videoUrl: fullVideoUrl,
+              videoTitle: videoTitle
+            }, (response) => {
+              button.classList.remove('processing');
+              
+              if (chrome.runtime.lastError) {
+                showNotification('Extension error: ' + chrome.runtime.lastError.message, 'error');
+              } else if (response && response.success) {
+                showNotification('Video added to W2G!', 'success');
+                button.classList.add('success');
+                setTimeout(() => {
+                  button.classList.remove('success');
+                }, 2000);
+              } else {
+                showNotification(response?.error || 'Failed to add video', 'error');
+              }
+            });
+          } catch (error) {
+            showNotification('Error: ' + error.message, 'error');
+            button.classList.remove('processing');
+          }
+        });
       });
       
       // Append button to thumbnail container
       thumbnailContainer.appendChild(button);
-      console.log('W2G: Added button to yt-lockup-view-model for', videoTitle);
     }
     
     return;
@@ -440,7 +471,6 @@ function addButtonToThumbnail(thumbnailElement) {
       if (parent && parent.querySelector('a[href*="watch?v="]')) {
         containerElement = parent;
       } else {
-        console.log('W2G: Could not find parent container for ytd-thumbnail');
         return;
       }
     }
@@ -448,34 +478,24 @@ function addButtonToThumbnail(thumbnailElement) {
   
   // Don't add button if already exists
   if (containerElement.querySelector('.w2g-thumbnail-button')) {
-    console.log('W2G: Button already exists for', containerElement.tagName);
     return;
   }
   
   // Find the link element that contains the video URL
   const linkElement = containerElement.querySelector('a[href*="watch?v="], a[href*="shorts/"]');
   if (!linkElement) {
-    console.log('W2G: No video link found in', containerElement.tagName);
     return;
   }
   
   const videoUrl = linkElement.href;
   const videoId = extractVideoId(videoUrl);
   if (!videoId) {
-    console.log('W2G: Could not extract video ID from', videoUrl);
     return;
   }
   
   // Get video title using the helper function
   let videoTitle = getVideoTitleFromContainer(containerElement);
-  
-  // Log debugging info
-  console.log('W2G: ytd-thumbnail title extraction:', {
-    containerType: containerElement.tagName,
-    titleFound: videoTitle,
-    hasVideoTitleId: !!containerElement.querySelector('#video-title')
-  });
-  
+
   // Clean and validate title
   videoTitle = cleanVideoTitle(videoTitle);
   
@@ -499,46 +519,65 @@ function addButtonToThumbnail(thumbnailElement) {
     
     button.classList.add('processing');
     
-    const fullVideoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    
-    try {
-      chrome.runtime.sendMessage({
-        action: 'sendToW2G',
-        videoUrl: fullVideoUrl,
-        videoTitle: videoTitle
-      }, (response) => {
+    // First check if API key is valid
+    chrome.runtime.sendMessage({ action: 'checkApiKeyValid' }, (response) => {
+      if (chrome.runtime.lastError) {
+        showNotification('Extension error: ' + chrome.runtime.lastError.message, 'error');
+        button.classList.remove('processing');
+        return;
+      }
+      
+      if (!response || !response.valid) {
+        // No valid API key - open popup
+        showNotification('Please configure your W2G API key', 'error');
         button.classList.remove('processing');
         
-        if (chrome.runtime.lastError) {
-          console.error('Chrome runtime error:', chrome.runtime.lastError);
-          showNotification('Extension error: ' + chrome.runtime.lastError.message, 'error');
-        } else if (response && response.success) {
-          showNotification('Video added to W2G!', 'success');
-          button.classList.add('success');
-          setTimeout(() => {
-            button.classList.remove('success');
-          }, 2000);
-        } else {
-          showNotification(response?.error || 'Failed to add video', 'error');
-        }
-      });
-    } catch (error) {
-      console.error('Error sending to W2G:', error);
-      showNotification('Error: ' + error.message, 'error');
-      button.classList.remove('processing');
-    }
+        // Try to open popup
+        chrome.runtime.sendMessage({ action: 'openPopup' }, (popupResponse) => {
+          if (chrome.runtime.lastError) {
+            // If popup can't be opened programmatically, open options page
+            window.open(chrome.runtime.getURL('popup.html'), '_blank', 'width=400,height=500');
+          }
+        });
+        return;
+      }
+      
+      // API key is valid, proceed
+      const fullVideoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+      
+      try {
+        chrome.runtime.sendMessage({
+          action: 'sendToW2G',
+          videoUrl: fullVideoUrl,
+          videoTitle: videoTitle
+        }, (response) => {
+          button.classList.remove('processing');
+          
+          if (chrome.runtime.lastError) {
+            showNotification('Extension error: ' + chrome.runtime.lastError.message, 'error');
+          } else if (response && response.success) {
+            showNotification('Video added to W2G!', 'success');
+            button.classList.add('success');
+            setTimeout(() => {
+              button.classList.remove('success');
+            }, 2000);
+          } else {
+            showNotification(response?.error || 'Failed to add video', 'error');
+          }
+        });
+      } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+        button.classList.remove('processing');
+      }
+    });
   });
   
   // Append button to video element
   containerElement.appendChild(button);
-  
-  console.log('W2G: Added button to ytd-thumbnail for', videoTitle, 'Container:', containerElement.tagName);
 }
 
 // Function to process all video thumbnails on the page
 function processVideoThumbnails() {
-  console.log('W2G: Processing video thumbnails on:', window.location.href);
-  
   // Selectors for different types of video containers on YouTube
   const selectors = [
     'ytd-video-renderer',              // Search results, home page
@@ -552,16 +591,7 @@ function processVideoThumbnails() {
     'yt-lockup-view-model'             // New YouTube structure for recommendations
   ];
   
-  // Try each selector individually to debug
-  selectors.forEach(selector => {
-    const elements = document.querySelectorAll(selector);
-    if (elements.length > 0) {
-      console.log(`W2G: Found ${elements.length} ${selector} elements`);
-    }
-  });
-  
   const videoElements = document.querySelectorAll(selectors.join(', '));
-  console.log('W2G: Found', videoElements.length, 'video elements');
   
   videoElements.forEach(element => {
     addButtonToThumbnail(element);
@@ -637,14 +667,11 @@ function setupThumbnailObserver() {
 
 // Initialize the extension
 function init() {
-  console.log('Send to W2G extension loaded');
-  
   // Initial injection for video player button
   injectButton();
   
   // Wait a bit for YouTube to fully load, then process thumbnails
   setTimeout(() => {
-    console.log('W2G: Processing initial thumbnails');
     processVideoThumbnails();
   }, 2000);
   

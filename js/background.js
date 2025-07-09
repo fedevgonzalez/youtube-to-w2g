@@ -16,6 +16,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .then(result => sendResponse(result))
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true; // Keep message channel open for async response
+  } else if (request.action === 'validateApiKey') {
+    validateApiKey(request.apiKey)
+      .then(result => sendResponse(result))
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true;
+  } else if (request.action === 'checkApiKeyValid') {
+    checkApiKeyValid()
+      .then(result => sendResponse(result))
+      .catch(error => sendResponse({ valid: false, error: error.message }));
+    return true;
+  } else if (request.action === 'openPopup') {
+    chrome.action.openPopup();
+    sendResponse({ success: true });
   }
 });
 
@@ -155,5 +168,95 @@ async function handleSendToW2G(videoUrl, videoTitle) {
   } catch (error) {
     console.error('Error sending to W2G:', error);
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Validates an API key by attempting to create a test room
+ * 
+ * @param {string} apiKey - The API key to validate
+ * @returns {Promise<Object>} Result object with success status
+ */
+async function validateApiKey(apiKey) {
+  try {
+    console.log('Validating API key...');
+    
+    const createUrl = 'https://api.w2g.tv/rooms/create.json';
+    const createBody = {
+      w2g_api_key: apiKey,
+      share: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' // Test video
+    };
+    
+    const response = await fetch(createUrl, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(createBody)
+    });
+    
+    if (response.ok) {
+      const roomData = await response.json();
+      if (roomData && roomData.streamkey) {
+        // API key is valid - save validation state
+        await chrome.storage.sync.set({ 
+          apiKeyValid: true,
+          apiKeyLastValidated: Date.now()
+        });
+        return { success: true, valid: true };
+      }
+    } else if (response.status === 403 || response.status === 401) {
+      // Invalid API key
+      await chrome.storage.sync.set({ 
+        apiKeyValid: false,
+        apiKeyLastValidated: Date.now()
+      });
+      return { success: true, valid: false, error: 'Invalid API key' };
+    }
+    
+    // Other error
+    const errorText = await response.text();
+    return { success: false, valid: false, error: `Validation failed: ${response.status} - ${errorText}` };
+    
+  } catch (error) {
+    console.error('Error validating API key:', error);
+    return { success: false, valid: false, error: error.message };
+  }
+}
+
+/**
+ * Checks if the stored API key is valid
+ * 
+ * @returns {Promise<Object>} Object with valid status and API key if exists
+ */
+async function checkApiKeyValid() {
+  try {
+    const config = await chrome.storage.sync.get(['apiKey', 'apiKeyValid', 'apiKeyLastValidated']);
+    
+    if (!config.apiKey) {
+      return { valid: false, hasApiKey: false };
+    }
+    
+    // Check if we have a recent validation (within 24 hours)
+    if (config.apiKeyValid !== undefined && config.apiKeyLastValidated) {
+      const hoursSinceValidation = (Date.now() - config.apiKeyLastValidated) / (1000 * 60 * 60);
+      if (hoursSinceValidation < 24) {
+        return { valid: config.apiKeyValid, hasApiKey: true, cached: true };
+      }
+    }
+    
+    // Re-validate if needed
+    const validationResult = await validateApiKey(config.apiKey);
+    return { 
+      valid: validationResult.valid, 
+      hasApiKey: true, 
+      cached: false,
+      error: validationResult.error 
+    };
+    
+  } catch (error) {
+    console.error('Error checking API key validity:', error);
+    return { valid: false, hasApiKey: false, error: error.message };
   }
 }

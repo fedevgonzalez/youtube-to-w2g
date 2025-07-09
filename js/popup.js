@@ -31,28 +31,78 @@ document.addEventListener('DOMContentLoaded', async () => {
     const apiKey = apiKeyInput.value.trim();
     const roomKey = roomKeyInput.value.trim();
     
+    // If no API key provided, just save/clear settings
     if (!apiKey) {
-      showStatus('Please enter your API key', 'error');
+      try {
+        await chrome.storage.sync.set({
+          apiKey: '',
+          roomKey: roomKey,
+          apiKeyValid: false,
+          apiKeyLastValidated: 0
+        });
+        
+        showStatus('Settings cleared successfully!', 'success');
+        
+        // Close popup after a short delay
+        setTimeout(() => {
+          window.close();
+        }, 1500);
+        
+      } catch (error) {
+        console.error('Error saving settings:', error);
+        showStatus('Error saving settings: ' + error.message, 'error');
+      }
       return;
     }
     
+    // Show validating status
+    showStatus('Validating API key...', 'info');
+    
     try {
-      // Save settings
-      await chrome.storage.sync.set({
-        apiKey: apiKey,
-        roomKey: roomKey
+      // Validate API key
+      chrome.runtime.sendMessage({
+        action: 'validateApiKey',
+        apiKey: apiKey
+      }, async (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Chrome runtime error:', chrome.runtime.lastError);
+          showStatus('Extension error: ' + chrome.runtime.lastError.message, 'error');
+          return;
+        }
+        
+        if (!response || !response.success) {
+          showStatus(response?.error || 'Failed to validate API key', 'error');
+          return;
+        }
+        
+        if (!response.valid) {
+          showStatus('Invalid API key. Please check your API key and try again.', 'error');
+          return;
+        }
+        
+        // API key is valid, save settings
+        try {
+          await chrome.storage.sync.set({
+            apiKey: apiKey,
+            roomKey: roomKey
+          });
+          
+          showStatus('Settings saved successfully! API key validated.', 'success');
+          
+          // Close popup after a short delay
+          setTimeout(() => {
+            window.close();
+          }, 1500);
+          
+        } catch (error) {
+          console.error('Error saving settings:', error);
+          showStatus('Error saving settings: ' + error.message, 'error');
+        }
       });
       
-      showStatus('Settings saved successfully!', 'success');
-      
-      // Close popup after a short delay
-      setTimeout(() => {
-        window.close();
-      }, 1500);
-      
     } catch (error) {
-      console.error('Error saving settings:', error);
-      showStatus('Error saving settings: ' + error.message, 'error');
+      console.error('Error:', error);
+      showStatus('Error: ' + error.message, 'error');
     }
   });
   
