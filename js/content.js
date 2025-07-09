@@ -1,8 +1,8 @@
 /**
- * Content Script for YouTube to Watch2Gether Extension
+ * Content Script for Y2W (YouTube to Watch2Gether) Extension
  * 
  * This script is injected into YouTube pages and handles:
- * - Creating and managing the "SEND TO W2G" button in the YouTube player
+ * - Creating and managing the Y2W button in the YouTube player
  * - Extracting video information (URL and title)
  * - Communicating with the background script to send videos to W2G
  * - Monitoring for YouTube's dynamic content changes
@@ -141,7 +141,7 @@ function getVideoTitle() {
   return cleanedTitle;
 }
 
-// Function to create the W2G button
+// Function to create the Y2W button
 function createW2GButton() {
   const button = document.createElement('button');
   button.id = 'w2g-send-button';

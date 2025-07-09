@@ -1,5 +1,5 @@
 /**
- * Background Service Worker for YouTube to Watch2Gether Extension
+ * Background Service Worker for Y2W (YouTube to Watch2Gether) Extension
  * 
  * Handles communication with the Watch2Gether API to:
  * - Create new W2G rooms when needed

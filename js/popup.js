@@ -1,5 +1,5 @@
 /**
- * Popup Script for YouTube to Watch2Gether Extension
+ * Popup Script for Y2W (YouTube to Watch2Gether) Extension
  * 
  * Manages the extension's configuration popup interface:
  * - Loading and saving API credentials

@@ -1,35 +1,55 @@
-## Description
-Please include a summary of the changes and which issue is fixed. Include relevant motivation and context.
+## What does this PR do?
+<!-- Tell me about your awesome changes! -->
 
-Fixes #(issue number)
+Fixes #(issue number) <!-- If applicable -->
 
 ## Type of change
-Please delete options that are not relevant.
+<!-- What kind of magic are we dealing with? -->
+- [ ] 🐛 Bug fix (something wasn't working, now it is!)
+- [ ] ✨ New feature (adding something cool)
+- [ ] 💥 Breaking change (this might affect existing users)
+- [ ] 📝 Documentation (making things clearer)
+- [ ] 🎨 Style/UI (making it prettier)
+- [ ] ♻️ Refactor (cleaning up without changing functionality)
 
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] Documentation update
+## The Checklist™️
+<!-- Let's make sure everything's good to go! -->
 
-## Checklist
+### Code Quality
+- [ ] My code is clean and follows the project style
+- [ ] I've reviewed my own code (yes, I found that typo)
+- [ ] No console.log() left behind! 
+- [ ] Comments where needed (future you will thank present you)
 
-- [ ] My code follows the style guidelines of this project
-- [ ] I have performed a self-review of my own code
-- [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] I have made corresponding changes to the documentation
-- [ ] My changes generate no new warnings
-- [ ] I have tested my changes on YouTube in different layouts (default, theater, fullscreen)
-- [ ] I have tested that the extension still works after my changes
-- [ ] I have checked that the button appears correctly and functions as expected
+### Testing
+- [ ] Tested on regular YouTube layout ✓
+- [ ] Tested in theater mode 🎭
+- [ ] Tested in fullscreen 🖥️
+- [ ] The button shows up and actually works!
+- [ ] No angry red errors in the console
 
-## Testing Instructions
+### Documentation
+- [ ] Updated docs if needed
+- [ ] Updated CHANGELOG.md if this is significant
 
-Please describe how to test your changes:
+## How to test this PR
+<!-- Help me help you test this! -->
 
-1. Step one
-2. Step two
-3. ...
+1. Load the extension
+2. Go to [specific YouTube URL or type]
+3. Do this specific thing...
+4. Magic should happen! ✨
 
-## Screenshots (if appropriate)
+## Screenshots/GIFs
+<!-- Show me what you got! Before/after pics are great -->
 
-Please add screenshots to help explain your changes.
+## Anything else?
+<!-- Any concerns? Proud moments? Dad jokes? -->
+
+## Final checks
+- [ ] I've actually tested this (not just "it works on my machine")
+- [ ] This PR has a descriptive title
+- [ ] I'm ready for feedback!
+
+---
+_Thanks for contributing! You're making Y2W better for everyone 🙌_

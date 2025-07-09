@@ -1,9 +1,11 @@
 # YouTube to Watch2Gether (Y2W)
 
 <div align="center">
-  <img src="icons/icon-128.png" alt="Y2W Logo" width="128" height="128">
+  <img src="icons/icon128.png" alt="Y2W Logo" width="128" height="128">
   
   **Send YouTube videos to your Watch2Gether room with a single click!**
+  
+  _Because copy-pasting URLs is so 2020_ 😎
   
   [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Coming%20Soon-red?style=flat-square&logo=google-chrome)](https://chrome.google.com/webstore)
   [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
@@ -12,22 +14,28 @@
   [![Manifest](https://img.shields.io/badge/Manifest-V3-green?style=flat-square)](https://developer.chrome.com/docs/extensions/mv3/)
 </div>
 
-## 📋 Overview
+## 📖 Why This Exists
 
-YouTube to Watch2Gether (Y2W) is a Chrome extension that adds a convenient "Send to W2G" button directly to YouTube videos. Share videos with your Watch2Gether room instantly without copying URLs or switching tabs!
+You know that moment when you're watching YouTube and find *the perfect* video to share with your friends on Watch2Gether? Yeah, me too. The whole copy URL → switch tabs → paste → hope it works thing got old real fast.
+
+So I built Y2W – a simple Chrome extension that adds a "Y2W" button right in the YouTube player. One click and boom, your video is in the W2G room. No more tab juggling!
+
+## 📋 What is Y2W?
+
+YouTube to Watch2Gether (Y2W) is a Chrome extension that seamlessly integrates with YouTube. It's literally just a button that does one thing really well: sends videos to your Watch2Gether room instantly.
 
 ### ✨ Features
 
-- 🎬 **One-Click Sharing**: Send any YouTube video to your W2G room instantly
-- 🔄 **Seamless Integration**: Button appears naturally in the YouTube player
-- 🎯 **Smart Positioning**: Works with all YouTube layouts (default, theater, fullscreen)
-- 🔐 **Secure**: Your API credentials are stored locally in Chrome's secure storage
-- ⚡ **Lightweight**: Minimal performance impact, only active on YouTube
+- 🎬 **One-Click Magic**: See video → Click button → Video appears in W2G. That's it!
+- 🔄 **Feels Native**: The button looks like it belongs there (because it does)
+- 🎯 **Works Everywhere**: Theater mode? ✓ Fullscreen? ✓ Mobile view? ✓ We got you
+- 🔐 **Your Keys, Your Rules**: Everything stays in your browser's secure storage
+- ⚡ **Zero Bloat**: So lightweight you'll forget it's there (until you need it)
 
 ## 🚀 Installation
 
-### From Chrome Web Store (Coming Soon)
-The extension will be available on the Chrome Web Store soon!
+### From Chrome Web Store (Coming Soon™️)
+I'm working on getting this bad boy approved. Chrome reviews take time, but hey, good things come to those who wait! 🤞
 
 ### Manual Installation (Developer Mode)
 
@@ -62,22 +70,22 @@ The extension will be available on the Chrome Web Store soon!
 3. Look for "Room Access Key" or "Room API Access"
 4. Copy the key
 
-> **Note**: Keep your credentials secure and never share them publicly!
+> **Pro tip**: Keep these keys safer than your Netflix password. Seriously, don't share them!
 
 ## 💻 Usage
 
 Once installed and configured:
 
 1. Navigate to any YouTube video
-2. Look for the **"SEND TO W2G"** button in the video player controls
+2. Look for the **"Y2W"** button in the video player controls
 3. Click the button to instantly send the video to your Watch2Gether room
 4. The button will show a checkmark (✓) when successful
 
-### Button States
-- **Normal**: Blue button with "SEND TO W2G" text
-- **Loading**: Shows "..." while sending
-- **Success**: Green with checkmark (✓)
-- **Error**: Red with "ERROR" text
+### Button States (aka The Button's Mood Ring)
+- **Normal**: Blue "Y2W" – Ready to party
+- **Loading**: "..." – Working on it, chief
+- **Success**: Green ✓ – Mission accomplished!
+- **Error**: Red "ERROR" – Oops, something went sideways
 
 ## 🛠️ Development
 
@@ -89,7 +97,7 @@ Once installed and configured:
 ### Project Structure
 ```
 youtube-to-w2g/
-├── manifest.json          # Extension manifest (V3)
+├── manifest.json         # Extension manifest (V3)
 ├── popup.html            # Configuration popup
 ├── css/                  # Styles
 │   └── popup.css
@@ -97,10 +105,8 @@ youtube-to-w2g/
 │   ├── background.js     # Service worker
 │   ├── content.js        # Content script
 │   └── popup.js          # Popup logic
-├── icons/                # Extension icons
-│   └── icon.svg          # Source icon
-└── assets/               # Additional assets
-    └── y2w.svg          # Button icon
+└── icons/                # Extension icons
+    └── y2w.svg           # Source icon
 ```
 
 ### Making Changes
@@ -109,35 +115,25 @@ youtube-to-w2g/
 2. Reload the extension in `chrome://extensions/`
 3. Refresh YouTube to test changes
 
-### Building Icons
-If you modify the icon, regenerate PNG versions:
-```bash
-cd icons
-convert -density 300 icon.svg -resize 16x16 icon-16.png
-convert -density 300 icon.svg -resize 32x32 icon-32.png
-convert -density 300 icon.svg -resize 48x48 icon-48.png
-convert -density 300 icon.svg -resize 128x128 icon-128.png
-```
-
 ## 🔧 Troubleshooting
 
-### Common Issues
+### Common Issues (aka "Halp, it's broken!")
 
-**Button not appearing on YouTube:**
+**"Where's my button?!"**
 - Refresh the YouTube page
 - Make sure the extension is enabled in `chrome://extensions/`
 - Check if you're on a YouTube video page (not the homepage or search)
 
-**"Configuration Missing" error:**
+**"Configuration Missing" (aka you forgot to set it up):**
 - Click the extension icon and enter your credentials
 - Make sure both API Key and Room Access Key are saved
 
-**"Failed to send" error:**
+**"Failed to send" (the dreaded red button):**
 - Verify your credentials are correct
 - Check if your W2G room is active
 - Ensure you have a stable internet connection
 
-**Extension not working after update:**
+**"It worked yesterday!" syndrome:**
 - Reload the extension in `chrome://extensions/`
 - Clear browser cache and cookies for YouTube
 
@@ -180,7 +176,9 @@ The extension uses the Watch2Gether API v1:
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+Found a bug? Have an idea? Want to make the button do a backflip? I'd love your help! Check out the [Contributing Guidelines](CONTRIBUTING.md) to get started.
+
+Seriously though, this project is better with your input. Don't be shy!
 
 ### Quick Start
 1. Fork the repository
@@ -189,27 +187,43 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 🐛 Bug Reports & Feature Requests
+## 🐛 Found a Bug? Got an Idea?
 
-Found a bug or have a feature idea? Please check the [issue tracker](https://github.com/fedevgonzalez/youtube-to-w2g/issues) to see if it already exists. If not, feel free to [open a new issue](https://github.com/fedevgonzalez/youtube-to-w2g/issues/new)!
+First, check if someone beat you to it in the [issue tracker](https://github.com/fedevgonzalez/youtube-to-w2g/issues). If not, [create a new issue](https://github.com/fedevgonzalez/youtube-to-w2g/issues/new) and let's make Y2W better together!
+
+I actually read these, promise. 👀
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## 🙏 Shoutouts
 
-- [Watch2Gether](https://www.watch2gether.com/) for providing the API
-- Chrome Extension community for documentation and examples
-- All contributors who help improve this extension
+- [Watch2Gether](https://www.watch2gether.com/) for building an awesome platform and having an API
+- The Chrome Extension docs that actually make sense (rare, I know)
+- Everyone who's contributed, reported bugs, or even just used this thing
+- My friends who kept asking "is it done yet?" – yes, it's done! 😅
 
-## 📞 Support
+## 💬 Need Help?
 
-- **Issues**: [GitHub Issues](https://github.com/fedevgonzalez/youtube-to-w2g/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/fedevgonzalez/youtube-to-w2g/discussions)
+- **Something broken?** → [Open an issue](https://github.com/fedevgonzalez/youtube-to-w2g/issues)
+- **Want to chat?** → [Join the discussion](https://github.com/fedevgonzalez/youtube-to-w2g/discussions)
+- **Found it useful?** → Star the repo! (It makes me smile 😊)
+
+## 💖 Support
+
+If Y2W saved you some time and you want to say thanks:
+
+- ☕ **Ko-fi**: [ko-fi.com/fedevgonzalez](https://ko-fi.com/fedevgonzalez)
+- ☕ **Cafecito** (Argentina): [cafecito.app/fedevgonzalez](https://cafecito.app/fedevgonzalez)
+- 🪙 **Crypto** (BEP20/BSC Network only):
+  - **USDT**: `0xf2e7b641b17ce9605562e437d43a50b975c9a0ad`
+  - **BTC**: `0xf2e7b641b17ce9605562e437d43a50b975c9a0ad`
 
 ---
 
 <div align="center">
-  Made with ❤️ by <a href="https://github.com/fedevgonzalez">fedevgonzalez</a> and contributors
+  Made with ❤️ (and lots of YouTube videos) by <a href="https://github.com/fedevgonzalez">fedevgonzalez</a>
+  <br>
+  <sub>If you're reading this, you're awesome! 🎉</sub>
 </div>

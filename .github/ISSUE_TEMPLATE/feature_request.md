@@ -1,25 +1,41 @@
 ---
-name: Feature Request
-about: Suggest an idea for this project
+name: Feature Request ✨
+about: Got an idea? I'm all ears!
 title: '[FEATURE] '
 labels: 'enhancement'
 assignees: ''
 
 ---
 
-## Is your feature request related to a problem?
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+## The Problem
+<!-- What made you think "there's gotta be a better way"? -->
+*Example: I'm always frustrated when I have to manually...*
 
-## Describe the solution you'd like
-A clear and concise description of what you want to happen.
+## Your Solution
+<!-- How would you make Y2W even better? Dream big! -->
 
-## Describe alternatives you've considered
-A clear and concise description of any alternative solutions or features you've considered.
+## Have you considered other approaches?
+<!-- Any other ways to solve this? It's okay if you haven't! -->
 
-## Additional context
-Add any other context or screenshots about the feature request here.
+## Show me what you mean
+<!-- Mockups, screenshots, drawings on napkins - all welcome! -->
 
-## Would you be willing to contribute this feature?
-- [ ] Yes, I can submit a pull request
-- [ ] Yes, but I would need guidance
-- [ ] No, but I'm happy to test it
+## Why this matters
+<!-- Help me understand why this would be awesome -->
+
+## Can you help make it happen?
+<!-- No pressure, just curious! -->
+- [ ] I could code this myself! 💪
+- [ ] I'd love to help but might need some pointers
+- [ ] I'm the ideas person, you're the code person 😄
+- [ ] I'll be your #1 beta tester!
+
+## Priority Check
+<!-- How important is this to you? -->
+- [ ] This would change my life!
+- [ ] Pretty important
+- [ ] Nice to have
+- [ ] Just a random thought
+
+---
+_Thanks for the suggestion! Even if I can't implement it right away, I love hearing ideas 💡_

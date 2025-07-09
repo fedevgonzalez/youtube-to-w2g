@@ -35,5 +35,4 @@ npm-debug.log*
 # Personal notes
 notes.txt
 TODO.txt
-CLAUDE.md
-.claude
+.claude/settings.local.json
