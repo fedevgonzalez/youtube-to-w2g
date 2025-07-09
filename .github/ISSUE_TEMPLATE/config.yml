@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
-  - name: =¬ Community Discussions
+  - name: Community Discussions
     url: https://github.com/fedevgonzalez/youtube-to-w2g/discussions
     about: Got a question? Want to chat? This is the place!
-  - name: =Ú Documentation
+  - name: Documentation
     url: https://github.com/fedevgonzalez/youtube-to-w2g#readme
     about: Check if your answer is already in the README
-  - name: = Security Issue
+  - name: Security Issue
     url: https://github.com/fedevgonzalez/youtube-to-w2g/blob/main/SECURITY.md
     about: Found a security vulnerability? Please check our security policy
