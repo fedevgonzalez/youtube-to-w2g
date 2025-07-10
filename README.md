@@ -20,7 +20,7 @@
 
 <div align="center">
   <a href="https://chromewebstore.google.com/detail/y2w-youtube-to-watch2geth/afgajabndpahomibkdlpgejbfmlfckig">
-    <img src="https://storage.googleapis.com/web-dev-uploads/image/WlD8wC6g8khYWPJUsQceQkhXSlv1/UV4C4ybeBTsZt43U4xis.png" alt="Available in the Chrome Web Store" height="60">
+    <img src="https://img.shields.io/badge/Chrome%20Web%20Store-Install%20Now-4285F4?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Install from Chrome Web Store" height="60">
   </a>
 </div>
 
