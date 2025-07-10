@@ -7,7 +7,7 @@
   
   _Because copy-pasting URLs is so 2020_ 😎
   
-  [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Coming%20Soon-red?style=flat-square&logo=google-chrome)](https://chrome.google.com/webstore)
+  [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Available-green?style=flat-square&logo=google-chrome)](https://chromewebstore.google.com/detail/y2w-youtube-to-watch2geth/afgajabndpahomibkdlpgejbfmlfckig)
   [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
   [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
   [![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-yellow?style=flat-square&logo=javascript)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
@@ -16,6 +16,12 @@
 
 <div align="center">
   <img src="assets/images/promo-banner.gif" alt="Y2W Promotional Banner" width="100%" style="max-width: 800px; margin: 20px 0;">
+</div>
+
+<div align="center">
+  <a href="https://chromewebstore.google.com/detail/y2w-youtube-to-watch2geth/afgajabndpahomibkdlpgejbfmlfckig">
+    <img src="https://storage.googleapis.com/web-dev-uploads/image/WlD8wC6g8khYWPJUsQceQkhXSlv1/UV4C4ybeBTsZt43U4xis.png" alt="Available in the Chrome Web Store" height="60">
+  </a>
 </div>
 
 ## 📖 Why This Exists
@@ -38,8 +44,14 @@ YouTube to Watch2Gether (Y2W) is a Chrome extension that seamlessly integrates w
 
 ## 🚀 Installation
 
-### From Chrome Web Store (Coming Soon™️)
-I'm working on getting this bad boy approved. Chrome reviews take time, but hey, good things come to those who wait! 🤞
+### From Chrome Web Store (Recommended)
+
+🎉 **Y2W is now available on the Chrome Web Store!**
+
+1. **[Install Y2W from Chrome Web Store](https://chromewebstore.google.com/detail/y2w-youtube-to-watch2geth/afgajabndpahomibkdlpgejbfmlfckig)**
+2. Click **"Add to Chrome"**
+3. The extension will be installed automatically
+4. Follow the configuration steps below
 
 ### Manual Installation (Developer Mode)
 
