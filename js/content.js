@@ -208,7 +208,17 @@ async function handleSendToW2G(e) {
         if (chrome.runtime.lastError) {
           showNotification('Extension error: ' + chrome.runtime.lastError.message, 'error');
         } else if (response && response.success) {
-          showNotification('Video added to W2G!', 'success');
+          // Show different messages based on action type
+          let message;
+          if (response.action === 'created_room') {
+            message = 'New W2G room created!';
+          } else if (response.action === 'added_to_playlist') {
+            message = response.tabFocused ? 'Video added to playlist!' : 'Video added to W2G playlist!';
+          } else {
+            message = 'Video added to W2G!';
+          }
+          
+          showNotification(message, 'success', response.roomUrl);
           w2gButton.classList.add('success');
           setTimeout(() => {
             w2gButton.classList.remove('success');
@@ -229,22 +239,84 @@ async function handleSendToW2G(e) {
 }
 
 // Function to show notifications
-function showNotification(message, type = 'info') {
+function showNotification(message, type = 'info', roomUrl = null) {
   const notification = document.createElement('div');
   notification.className = `w2g-notification ${type}`;
-  notification.textContent = message;
+  
+  // Create message element
+  const messageElement = document.createElement('div');
+  messageElement.className = 'w2g-notification-message';
+  messageElement.textContent = message;
+  notification.appendChild(messageElement);
+  
+  // Add "Go to Room" button if roomUrl is provided
+  if (roomUrl && type === 'success') {
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'w2g-notification-actions';
+    
+    const goToRoomButton = document.createElement('button');
+    goToRoomButton.className = 'w2g-notification-button';
+    goToRoomButton.textContent = 'Go to Room';
+    goToRoomButton.addEventListener('click', () => {
+      handleGoToRoom(roomUrl);
+      notification.remove();
+    });
+    
+    buttonContainer.appendChild(goToRoomButton);
+    notification.appendChild(buttonContainer);
+  }
+  
   document.body.appendChild(notification);
   
+  // Auto-hide functionality with hover persistence
+  let autoHideTimeout;
+  let isHovered = false;
+  
+  const scheduleAutoHide = () => {
+    autoHideTimeout = setTimeout(() => {
+      if (!isHovered) {
+        notification.classList.remove('show');
+        setTimeout(() => {
+          notification.remove();
+        }, 300);
+      } else {
+        // Re-schedule if still hovered
+        scheduleAutoHide();
+      }
+    }, 5000); // Increased timeout to 5 seconds for better UX
+  };
+  
+  // Handle mouse events for hover persistence
+  notification.addEventListener('mouseenter', () => {
+    isHovered = true;
+    notification.classList.add('persistent');
+  });
+  
+  notification.addEventListener('mouseleave', () => {
+    isHovered = false;
+    notification.classList.remove('persistent');
+    scheduleAutoHide();
+  });
+  
+  // Show notification
   setTimeout(() => {
     notification.classList.add('show');
   }, 10);
   
-  setTimeout(() => {
-    notification.classList.remove('show');
-    setTimeout(() => {
-      notification.remove();
-    }, 300);
-  }, 3000);
+  // Start auto-hide timer
+  scheduleAutoHide();
+}
+
+// Function to handle "Go to Room" button click
+function handleGoToRoom(roomUrl) {
+  chrome.runtime.sendMessage({
+    action: 'goToRoom',
+    roomUrl: roomUrl
+  }, (response) => {
+    if (chrome.runtime.lastError) {
+      console.error('Error navigating to room:', chrome.runtime.lastError.message);
+    }
+  });
 }
 
 // Function to get W2G logo SVG (using external file)
@@ -437,7 +509,17 @@ function addButtonToThumbnail(thumbnailElement) {
               if (chrome.runtime.lastError) {
                 showNotification('Extension error: ' + chrome.runtime.lastError.message, 'error');
               } else if (response && response.success) {
-                showNotification('Video added to W2G!', 'success');
+                // Show different messages based on action type
+                let message;
+                if (response.action === 'created_room') {
+                  message = 'New W2G room created!';
+                } else if (response.action === 'added_to_playlist') {
+                  message = response.tabFocused ? 'Video added to playlist!' : 'Video added to W2G playlist!';
+                } else {
+                  message = 'Video added to W2G!';
+                }
+                
+                showNotification(message, 'success', response.roomUrl);
                 button.classList.add('success');
                 setTimeout(() => {
                   button.classList.remove('success');
@@ -556,7 +638,17 @@ function addButtonToThumbnail(thumbnailElement) {
           if (chrome.runtime.lastError) {
             showNotification('Extension error: ' + chrome.runtime.lastError.message, 'error');
           } else if (response && response.success) {
-            showNotification('Video added to W2G!', 'success');
+            // Show different messages based on action type
+            let message;
+            if (response.action === 'created_room') {
+              message = 'New W2G room created!';
+            } else if (response.action === 'added_to_playlist') {
+              message = response.tabFocused ? 'Video added to playlist!' : 'Video added to W2G playlist!';
+            } else {
+              message = 'Video added to W2G!';
+            }
+            
+            showNotification(message, 'success', response.roomUrl);
             button.classList.add('success');
             setTimeout(() => {
               button.classList.remove('success');

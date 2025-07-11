@@ -79,22 +79,29 @@
   left: 20px !important;
   background-color: #333 !important;
   color: white !important;
-  padding: 12px 20px !important;
-  border-radius: 4px !important;
+  padding: 12px 16px !important;
+  border-radius: 8px !important;
   font-size: 14px !important;
   font-family: Roboto, Arial, sans-serif !important;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
   z-index: 999999 !important;
   transform: translateY(100px) !important;
   opacity: 0 !important;
   transition: all 0.3s ease !important;
-  max-width: 300px !important;
+  max-width: 320px !important;
+  min-width: 250px !important;
 }
 
 /* Notification visible state */
 .w2g-notification.show {
   transform: translateY(0) !important;
   opacity: 1 !important;
+}
+
+/* Notification persistent state (on hover) */
+.w2g-notification.persistent {
+  box-shadow: 0 6px 16px rgba(0,0,0,0.2) !important;
+  transform: translateY(-2px) !important;
 }
 
 /* Success notification */
@@ -110,6 +117,58 @@
 /* Info notification */
 .w2g-notification.info {
   background-color: #2196F3 !important;
+}
+
+/* Notification message */
+.w2g-notification-message {
+  margin-bottom: 0 !important;
+  line-height: 1.4 !important;
+}
+
+/* Notification actions container */
+.w2g-notification-actions {
+  margin-top: 8px !important;
+  display: flex !important;
+  gap: 8px !important;
+  justify-content: flex-end !important;
+}
+
+/* Notification button */
+.w2g-notification-button {
+  background-color: rgba(255,255,255,0.2) !important;
+  border: 1px solid rgba(255,255,255,0.3) !important;
+  color: white !important;
+  padding: 4px 12px !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  font-family: Roboto, Arial, sans-serif !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  outline: none !important;
+}
+
+/* Notification button hover */
+.w2g-notification-button:hover {
+  background-color: rgba(255,255,255,0.3) !important;
+  border-color: rgba(255,255,255,0.5) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Notification button active */
+.w2g-notification-button:active {
+  transform: translateY(0) !important;
+  background-color: rgba(255,255,255,0.4) !important;
+}
+
+/* Success notification button styling */
+.w2g-notification.success .w2g-notification-button {
+  background-color: rgba(255,255,255,0.15) !important;
+  border-color: rgba(255,255,255,0.25) !important;
+}
+
+.w2g-notification.success .w2g-notification-button:hover {
+  background-color: rgba(255,255,255,0.25) !important;
+  border-color: rgba(255,255,255,0.4) !important;
 }
 
 /* Loading animation */

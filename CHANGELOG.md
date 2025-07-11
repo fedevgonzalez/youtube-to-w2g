@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2025-01-11
+
+### 🎯 Enhanced User Experience
+- **Improved notifications** - Now clearly distinguish between creating a new room vs. adding to existing playlist
+- **"Go to Room" button** - Click to instantly navigate to your W2G room after adding a video
+- **Smart tab navigation** - Automatically focuses existing W2G tabs instead of opening duplicates
+- **Hover persistence** - Notifications stay visible while you hover over them (no more disappearing messages!)
+- **Better room data handling** - Stores both room_key and access_key for more reliable room URLs
+
+### Enhanced
+- Extended notification display time to 5 seconds for better readability
+- Improved visual feedback with hover effects on notifications
+- Better error handling and user feedback across all scenarios
+- More intuitive messaging based on user actions
+
+### Fixed
+- Room URL construction now properly handles both access_key and room_key formats
+- Tab detection works with all W2G URL formats (`/rooms/xxx` and `?access_key=xxx`)
+- Notification styling improvements for better visibility and interaction
+
+### Technical Improvements
+- Enhanced API response data extraction and storage
+- Improved background service worker for better tab management
+- More robust URL matching for existing W2G tabs
+
 ## [1.0.0] - 2025-01-10
 
 ### 🎊 We're Live on Chrome Web Store!

@@ -29,6 +29,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === 'openPopup') {
     chrome.action.openPopup();
     sendResponse({ success: true });
+  } else if (request.action === 'goToRoom') {
+    handleGoToRoom(request.roomUrl)
+      .then(result => sendResponse(result))
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true;
   }
 });
 
@@ -89,14 +94,41 @@ async function handleSendToW2G(videoUrl, videoTitle) {
       
       roomKey = roomData.streamkey;
       
-      // Save the new room key
-      await chrome.storage.sync.set({ roomKey: roomKey });
+      // Extract additional room info from response
+      const roomInfo = {
+        roomKey: roomKey,
+        streamkey: roomData.streamkey,
+        // W2G API may return access_key, room_id, or other useful data
+        accessKey: roomData.access_key || roomData.accesskey || null,
+        roomId: roomData.room_id || roomData.roomid || null,
+        created: Date.now()
+      };
+      
+      // Save the room information
+      await chrome.storage.sync.set({ 
+        roomKey: roomKey,
+        roomInfo: roomInfo
+      });
+      
+      // Build room URL - try with access_key first if available
+      let w2gUrl;
+      if (roomInfo.accessKey) {
+        w2gUrl = `https://w2g.tv/en/room/?access_key=${roomInfo.accessKey}`;
+      } else {
+        w2gUrl = `https://w2g.tv/rooms/${roomKey}`;
+      }
       
       // Open the new room
-      const w2gUrl = `https://w2g.tv/rooms/${roomKey}`;
       await chrome.tabs.create({ url: w2gUrl });
       
-      return { success: true, message: 'Created new W2G room with video!' };
+      return { 
+        success: true, 
+        message: 'Created new W2G room with video!',
+        action: 'created_room',
+        roomUrl: w2gUrl,
+        roomKey: roomKey,
+        accessKey: roomInfo.accessKey
+      };
       
     } else {
       // Add video to existing room's playlist
@@ -154,15 +186,36 @@ async function handleSendToW2G(videoUrl, videoTitle) {
         console.log('Response has no JSON content, but request was successful');
       }
       
+      // Get stored room info for URL building
+      const storedData = await chrome.storage.sync.get(['roomInfo']);
+      const roomInfo = storedData.roomInfo || {};
+      
+      // Build room URL - try with access_key first if available
+      let w2gUrl;
+      if (roomInfo.accessKey) {
+        w2gUrl = `https://w2g.tv/en/room/?access_key=${roomInfo.accessKey}`;
+      } else {
+        w2gUrl = `https://w2g.tv/rooms/${roomKey}`;
+      }
+      
       // Find and focus W2G tab if it exists
       const tabs = await chrome.tabs.query({ url: '*://w2g.tv/*' });
-      const w2gTab = tabs.find(tab => tab.url && tab.url.includes(roomKey));
+      const w2gTab = tabs.find(tab => tab.url && (tab.url.includes(roomKey) || 
+        (roomInfo.accessKey && tab.url.includes(roomInfo.accessKey))));
       
       if (w2gTab) {
         await chrome.tabs.update(w2gTab.id, { active: true });
       }
       
-      return { success: true, message: 'Video added to W2G playlist!' };
+      return { 
+        success: true, 
+        message: 'Video added to W2G playlist!',
+        action: 'added_to_playlist',
+        roomUrl: w2gUrl,
+        roomKey: roomKey,
+        accessKey: roomInfo.accessKey,
+        tabFocused: !!w2gTab
+      };
     }
     
   } catch (error) {
@@ -258,5 +311,66 @@ async function checkApiKeyValid() {
   } catch (error) {
     console.error('Error checking API key validity:', error);
     return { valid: false, hasApiKey: false, error: error.message };
+  }
+}
+
+/**
+ * Handles navigating to a W2G room - either focuses existing tab or opens new one
+ * 
+ * @param {string} roomUrl - The room URL to navigate to
+ * @returns {Promise<Object>} Result object with success status
+ */
+async function handleGoToRoom(roomUrl) {
+  try {
+    console.log('Navigating to W2G room:', roomUrl);
+    
+    // Extract identifiers from URL to match existing tabs
+    const url = new URL(roomUrl);
+    let searchParams = [];
+    
+    if (url.searchParams.has('access_key')) {
+      searchParams.push(url.searchParams.get('access_key'));
+    }
+    
+    if (url.pathname.includes('/rooms/')) {
+      const roomKey = url.pathname.split('/rooms/')[1];
+      if (roomKey) {
+        searchParams.push(roomKey);
+      }
+    }
+    
+    if (url.searchParams.has('r')) {
+      searchParams.push(url.searchParams.get('r'));
+    }
+    
+    // Find existing W2G tabs
+    const tabs = await chrome.tabs.query({ url: '*://w2g.tv/*' });
+    
+    // Try to find a tab that matches any of our search parameters
+    let matchingTab = null;
+    for (const tab of tabs) {
+      for (const param of searchParams) {
+        if (tab.url && tab.url.includes(param)) {
+          matchingTab = tab;
+          break;
+        }
+      }
+      if (matchingTab) break;
+    }
+    
+    if (matchingTab) {
+      // Focus existing tab
+      await chrome.tabs.update(matchingTab.id, { active: true });
+      await chrome.windows.update(matchingTab.windowId, { focused: true });
+      return { success: true, action: 'focused_existing_tab' };
+    } else {
+      // Open new tab
+      await chrome.tabs.create({ url: roomUrl });
+      return { success: true, action: 'opened_new_tab' };
+    }
+    
+  } catch (error) {
+    console.error('Error navigating to W2G room:', error);
+    return { success: false, error: error.message };
   }
 }
