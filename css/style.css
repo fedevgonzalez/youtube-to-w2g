@@ -255,7 +255,10 @@ ytd-reel-item-renderer:hover .w2g-thumbnail-button,
 ytd-rich-grid-media:hover .w2g-thumbnail-button,
 ytm-video-card-renderer:hover .w2g-thumbnail-button,
 ytm-compact-video-renderer:hover .w2g-thumbnail-button,
-yt-lockup-view-model:hover .w2g-thumbnail-button {
+yt-lockup-view-model:hover .w2g-thumbnail-button,
+yt-lockup-view-model.ytd-item-section-renderer:hover .w2g-thumbnail-button,
+ytd-item-section-renderer ytd-video-renderer:hover .w2g-thumbnail-button,
+ytd-item-section-renderer ytd-compact-video-renderer:hover .w2g-thumbnail-button {
   opacity: 1 !important;
 }
 
@@ -303,11 +306,11 @@ yt-lockup-view-model:hover .w2g-thumbnail-button {
 }
 
 /* Specific styles for yt-lockup-view-model structure */
-.yt-lockup-view-model-wiz__content-image {
+.yt-lockup-view-model__content-image {
   position: relative !important;
 }
 
-.yt-lockup-view-model-wiz__content-image .w2g-thumbnail-button.yt-lockup {
+.yt-lockup-view-model__content-image .w2g-thumbnail-button.yt-lockup {
   bottom: 8px !important;
   left: 8px !important;
 }

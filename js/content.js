@@ -379,7 +379,7 @@ function getVideoTitleFromContainer(container) {
     'span#video-title',
     // Less specific but still good
     'h3 a[aria-label]:not([href*="/channel/"]):not([href*="/@"])',
-    'h3.yt-lockup-view-model-wiz__title a[aria-label]',
+    'a.yt-lockup-metadata-view-model__title[aria-label]',
     // Generic but filtered
     'a[aria-label]:not([href*="/channel/"]):not([href*="/@"])'
   ];
@@ -434,7 +434,7 @@ function addButtonToThumbnail(thumbnailElement) {
     }
     
     // Find the link element with video URL
-    const linkElement = thumbnailElement.querySelector('a.yt-lockup-view-model-wiz__content-image[href]');
+    const linkElement = thumbnailElement.querySelector('a.yt-lockup-view-model__content-image[href]');
     if (!linkElement) {
       return;
     }
@@ -458,7 +458,7 @@ function addButtonToThumbnail(thumbnailElement) {
     button.innerHTML = getW2GSvg();
     
     // Find the thumbnail container to position the button
-    const thumbnailContainer = thumbnailElement.querySelector('.yt-lockup-view-model-wiz__content-image');
+    const thumbnailContainer = thumbnailElement.querySelector('.yt-lockup-view-model__content-image');
     if (thumbnailContainer) {
       // Make the container relative for absolute positioning
       thumbnailContainer.style.position = 'relative';
@@ -672,7 +672,7 @@ function addButtonToThumbnail(thumbnailElement) {
 function processVideoThumbnails() {
   // Selectors for different types of video containers on YouTube
   const selectors = [
-    'ytd-video-renderer',              // Search results, home page
+    'ytd-video-renderer',              // Search results, home page, recommendations
     'ytd-compact-video-renderer',      // Sidebar recommendations
     'ytd-grid-video-renderer',         // Grid layout
     'ytd-rich-item-renderer',          // Home page rich grid
@@ -680,11 +680,14 @@ function processVideoThumbnails() {
     'ytm-compact-video-renderer',      // Mobile web compact
     'ytd-reel-item-renderer',          // Shorts
     'ytd-thumbnail',                   // Video thumbnails in watch page sidebar
-    'yt-lockup-view-model'             // New YouTube structure for recommendations
+    'yt-lockup-view-model',            // New YouTube structure for recommendations
+    'yt-lockup-view-model.ytd-item-section-renderer',  // Videos in recommendation sections with ytd-item-section-renderer class
+    'ytd-item-section-renderer ytd-video-renderer',  // Videos in item sections (recommendations below video)
+    'ytd-item-section-renderer ytd-compact-video-renderer'  // Compact videos in item sections
   ];
-  
+
   const videoElements = document.querySelectorAll(selectors.join(', '));
-  
+
   videoElements.forEach(element => {
     addButtonToThumbnail(element);
   });
