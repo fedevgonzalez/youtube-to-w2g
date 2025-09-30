@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2025-09-30
+
+### 🔄 Auto-Sync Magic!
+The feature everyone's been waiting for - **automatic streamkey detection**! Now you can sync with third-party rooms (rooms you didn't create) just by visiting them with an access_key URL.
+
+### Added
+- **Auto-Sync Feature** - Intelligently detects streamkeys when you join W2G rooms via access_key URLs
+  - 9 different detection methods (URL parsing, Next.js data, API interception, clipboard monitoring, and more)
+  - Works seamlessly in the background
+  - New dedicated content script (`w2g-content.js`) for W2G page integration
+- **Auto-Copy to Clipboard** - Optional feature to automatically copy detected streamkeys
+- **User Preference Toggles** - Customize auto-sync and auto-copy behavior in the popup
+- **Enhanced Notifications** - Better feedback when streamkeys are detected
+
+### Enhanced
+- **YouTube Compatibility** - Updated selectors for YouTube's latest layout changes
+  - Improved button placement on different video renderer types
+  - Better hover states for thumbnail buttons
+  - Works across desktop, theater, and fullscreen modes
+- **Code Quality** - Major refactoring for better performance and maintainability
+  - Cleaner message handling in content scripts
+  - Removed unnecessary console logs
+  - Improved error handling throughout
+
+### Changed
+- Added new permissions for `w2g.tv/*` pages (required for auto-sync feature)
+- Notification handling streamlined for better user experience
+- Commented out auto-focus feature based on user preference feedback
+
+### Technical Details
+- New content script runs on W2G pages to extract room data
+- Intercepts fetch/XHR API calls to find streamkeys in responses
+- Monitors DOM, localStorage, and clipboard for streamkey patterns
+- Associates manually saved roomKeys with accessKeys for better room tracking
+- Improved handling of unknown accessKeys
+
+### Privacy Note
+The extension now accesses W2G pages to enable auto-sync. All data stays local - we only send videos to YOUR room's API endpoint. No tracking, no analytics, no nonsense.
+
+### What This Means For You
+You can now use the extension with **ANY** W2G room you can access, not just rooms you created! Perfect for:
+- Syncing with friends' rooms
+- Contributing to community watch parties
+- Managing multiple rooms across different accounts
+
 ## [1.0.1] - 2025-01-11
 
 ### 🎯 Enhanced User Experience
