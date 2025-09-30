@@ -1,18 +1,98 @@
 /**
  * Content Script for Y2W (YouTube to Watch2Gether) Extension
- * 
+ *
  * This script is injected into YouTube pages and handles:
  * - Creating and managing the Y2W button in the YouTube player
  * - Extracting video information (URL and title)
  * - Communicating with the background script to send videos to W2G
  * - Monitoring for YouTube's dynamic content changes
- * 
+ *
  * @file content.js
  */
 
 let w2gButton = null;
 let isProcessing = false;
 let thumbnailObserver = null;
+
+// Cache SVG URL at script load time to avoid "Extension context invalidated" errors
+let cachedSvgUrl = null;
+try {
+  cachedSvgUrl = chrome.runtime.getURL('assets/icons/y2w.svg');
+} catch (e) {
+  console.error('[Y2W] Failed to get SVG URL:', e);
+}
+
+// Check if extension context is valid
+function isExtensionValid() {
+  try {
+    return chrome.runtime && chrome.runtime.id;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Safe wrapper for chrome.runtime.sendMessage that handles context invalidation
+function safeRuntimeSendMessage(message, callback) {
+  // Double-check extension validity
+  if (!isExtensionValid()) {
+    console.warn('[Y2W] Extension context invalidated. Please reload the page.');
+    if (callback) {
+      callback({ success: false, error: 'Extension context invalidated' });
+    }
+    return;
+  }
+
+  try {
+    // Verify chrome.runtime.sendMessage exists before calling
+    if (!chrome.runtime || typeof chrome.runtime.sendMessage !== 'function') {
+      console.warn('[Y2W] Extension context invalidated. Please reload the page.');
+      if (callback) {
+        callback({ success: false, error: 'Extension context invalidated' });
+      }
+      return;
+    }
+
+    chrome.runtime.sendMessage(message, (response) => {
+      // Check if context was invalidated during the async operation
+      if (!isExtensionValid()) {
+        console.warn('[Y2W] Extension context invalidated during message handling.');
+        if (callback) {
+          callback({ success: false, error: 'Extension context invalidated' });
+        }
+        return;
+      }
+
+      if (chrome.runtime.lastError) {
+        console.error('[Y2W] Runtime error:', chrome.runtime.lastError);
+        if (callback) {
+          callback({ success: false, error: chrome.runtime.lastError.message });
+        }
+      } else if (callback) {
+        callback(response);
+      }
+    });
+  } catch (e) {
+    console.error('[Y2W] Failed to send message:', e);
+    if (callback) {
+      callback({ success: false, error: e.message });
+    }
+  }
+}
+
+// Listen for notification requests from background script
+if (isExtensionValid()) {
+  try {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === 'showNotification') {
+        showNotification(request.message, request.type, request.roomUrl);
+        sendResponse({ success: true });
+      }
+      return true;
+    });
+  } catch (e) {
+    console.error('[Y2W] Failed to register message listener:', e);
+  }
+}
 
 /**
  * Extracts the current YouTube video URL from the page
@@ -166,31 +246,29 @@ async function handleSendToW2G(e) {
   
   try {
     // First check if API key is valid
-    chrome.runtime.sendMessage({ action: 'checkApiKeyValid' }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.error('[Y2W] Chrome runtime error:', chrome.runtime.lastError);
-        showNotification('Extension error: ' + chrome.runtime.lastError.message, 'error');
+    safeRuntimeSendMessage({ action: 'checkApiKeyValid' }, (response) => {
+      // Check for wrapper errors (extension context invalid, etc.)
+      if (!response || (response.error && response.success === false)) {
+        console.error('[Y2W] Extension error:', response?.error);
+        showNotification('Extension error: ' + (response?.error || 'Unknown error'), 'error');
         isProcessing = false;
         w2gButton.classList.remove('processing');
         return;
       }
-      
-      if (!response || !response.valid) {
+
+      if (!response.valid) {
         // No valid API key - open popup
         showNotification('Please configure your W2G API key', 'error');
         isProcessing = false;
         w2gButton.classList.remove('processing');
-        
+
         // Try to open popup
-        chrome.runtime.sendMessage({ action: 'openPopup' }, (popupResponse) => {
-          if (chrome.runtime.lastError) {
-            // If popup can't be opened programmatically, open options page
-            window.open(chrome.runtime.getURL('popup.html'), '_blank', 'width=400,height=500');
-          }
+        safeRuntimeSendMessage({ action: 'openPopup' }, () => {
+          // Popup opened or failed silently
         });
         return;
       }
-      
+
       // API key is valid, proceed with sending video
       const videoUrl = getCurrentVideoUrl();
       if (!videoUrl) {
@@ -199,14 +277,15 @@ async function handleSendToW2G(e) {
         w2gButton.classList.remove('processing');
         return;
       }
-      
-      chrome.runtime.sendMessage({
+
+      safeRuntimeSendMessage({
         action: 'sendToW2G',
         videoUrl: videoUrl,
         videoTitle: getVideoTitle()
       }, (response) => {
-        if (chrome.runtime.lastError) {
-          showNotification('Extension error: ' + chrome.runtime.lastError.message, 'error');
+        // Check for wrapper errors
+        if (!response || (response.error && response.success === false)) {
+          showNotification('Extension error: ' + (response?.error || 'Unknown error'), 'error');
         } else if (response && response.success) {
           // Show different messages based on action type
           let message;
@@ -238,90 +317,188 @@ async function handleSendToW2G(e) {
   }
 }
 
-// Function to show notifications
-function showNotification(message, type = 'info', roomUrl = null) {
-  const notification = document.createElement('div');
-  notification.className = `w2g-notification ${type}`;
-  
-  // Create message element
-  const messageElement = document.createElement('div');
-  messageElement.className = 'w2g-notification-message';
-  messageElement.textContent = message;
-  notification.appendChild(messageElement);
-  
-  // Add "Go to Room" button if roomUrl is provided
-  if (roomUrl && type === 'success') {
-    const buttonContainer = document.createElement('div');
-    buttonContainer.className = 'w2g-notification-actions';
-    
-    const goToRoomButton = document.createElement('button');
-    goToRoomButton.className = 'w2g-notification-button';
-    goToRoomButton.textContent = 'Go to Room';
-    goToRoomButton.addEventListener('click', () => {
-      handleGoToRoom(roomUrl);
-      notification.remove();
-    });
-    
-    buttonContainer.appendChild(goToRoomButton);
-    notification.appendChild(buttonContainer);
-  }
-  
-  document.body.appendChild(notification);
-  
-  // Auto-hide functionality with hover persistence
-  let autoHideTimeout;
-  let isHovered = false;
-  
-  const scheduleAutoHide = () => {
-    autoHideTimeout = setTimeout(() => {
-      if (!isHovered) {
-        notification.classList.remove('show');
-        setTimeout(() => {
-          notification.remove();
-        }, 300);
-      } else {
-        // Re-schedule if still hovered
-        scheduleAutoHide();
+// Unified Notification Manager - handles all notifications with proper stacking
+const NotificationManager = {
+  notifications: [],
+  MAX_NOTIFICATIONS: 2,
+  BASE_BOTTOM: 20,
+  SPACING: 12,
+
+  init() {
+    // Clean up any existing notifications on init
+    document.querySelectorAll('.w2g-notification').forEach(el => el.remove());
+    this.notifications = [];
+  },
+
+  show(message, type = 'info', roomUrl = null) {
+    // Remove oldest if at capacity
+    if (this.notifications.length >= this.MAX_NOTIFICATIONS) {
+      const oldest = this.notifications[0];
+      if (!oldest.isHovered) {
+        this.remove(oldest);
+      } else if (this.notifications.length > 1) {
+        // Try to remove second oldest if first is hovered
+        const secondOldest = this.notifications[1];
+        if (!secondOldest.isHovered) {
+          this.remove(secondOldest);
+        }
       }
-    }, 5000); // Increased timeout to 5 seconds for better UX
-  };
-  
-  // Handle mouse events for hover persistence
-  notification.addEventListener('mouseenter', () => {
-    isHovered = true;
-    notification.classList.add('persistent');
-  });
-  
-  notification.addEventListener('mouseleave', () => {
-    isHovered = false;
-    notification.classList.remove('persistent');
-    scheduleAutoHide();
-  });
-  
-  // Show notification
-  setTimeout(() => {
-    notification.classList.add('show');
-  }, 10);
-  
-  // Start auto-hide timer
-  scheduleAutoHide();
+    }
+
+    this.create(message, type, roomUrl);
+  },
+
+  create(message, type, roomUrl) {
+    // Create notification element
+    const element = document.createElement('div');
+    element.className = `w2g-notification ${type}`;
+
+    // Create message
+    const messageEl = document.createElement('div');
+    messageEl.className = 'w2g-notification-message';
+    messageEl.textContent = message;
+    element.appendChild(messageEl);
+
+    // Add "Go to Room" button if needed
+    if (roomUrl && type === 'success') {
+      const buttonContainer = document.createElement('div');
+      buttonContainer.className = 'w2g-notification-actions';
+
+      const button = document.createElement('button');
+      button.className = 'w2g-notification-button';
+      button.textContent = 'Go to Room';
+      button.addEventListener('click', () => {
+        handleGoToRoom(roomUrl);
+        this.remove(notif);
+      });
+
+      buttonContainer.appendChild(button);
+      element.appendChild(buttonContainer);
+    }
+
+    // Create notification object
+    const notif = {
+      element: element,
+      isHovered: false,
+      autoHideTimeout: null,
+      height: 0
+    };
+
+    // Add to DOM to measure height
+    element.style.visibility = 'hidden';
+    element.style.position = 'fixed';
+    document.body.appendChild(element);
+
+    // Force layout calculation
+    element.offsetHeight;
+
+    // Get actual height
+    notif.height = element.offsetHeight;
+
+    // Remove from DOM temporarily
+    element.remove();
+    element.style.visibility = '';
+
+    // Add to notifications array
+    this.notifications.push(notif);
+
+    // Calculate position based on actual heights
+    this.updatePositions();
+
+    // Add back to DOM at correct position
+    document.body.appendChild(element);
+
+    // Set up hover handlers
+    element.addEventListener('mouseenter', () => {
+      notif.isHovered = true;
+      element.classList.add('persistent', 'hovered');
+      clearTimeout(notif.autoHideTimeout);
+    });
+
+    element.addEventListener('mouseleave', () => {
+      notif.isHovered = false;
+      element.classList.remove('persistent', 'hovered');
+      this.scheduleAutoHide(notif);
+    });
+
+    // Show with animation
+    setTimeout(() => {
+      element.classList.add('show');
+    }, 10);
+
+    // Start auto-hide timer
+    this.scheduleAutoHide(notif);
+  },
+
+  scheduleAutoHide(notif) {
+    clearTimeout(notif.autoHideTimeout);
+    notif.autoHideTimeout = setTimeout(() => {
+      if (!notif.isHovered) {
+        this.remove(notif);
+      } else {
+        this.scheduleAutoHide(notif);
+      }
+    }, 4000);
+  },
+
+  remove(notif) {
+    const index = this.notifications.indexOf(notif);
+    if (index === -1) return;
+
+    // Remove from array first
+    this.notifications.splice(index, 1);
+
+    // Animate out
+    notif.element.classList.remove('show');
+
+    // Update remaining positions
+    this.updatePositions();
+
+    // Remove from DOM after animation
+    setTimeout(() => {
+      if (notif.element.parentNode) {
+        notif.element.remove();
+      }
+    }, 300);
+  },
+
+  updatePositions() {
+    let currentBottom = this.BASE_BOTTOM;
+
+    this.notifications.forEach((notif, index) => {
+      notif.element.style.bottom = `${currentBottom}px`;
+      notif.element.style.zIndex = 999999 + index;
+
+      // Add this notification's height plus spacing for next one
+      currentBottom += notif.height + this.SPACING;
+    });
+  }
+};
+
+// Initialize notification manager
+NotificationManager.init();
+
+// Unified notification function - single entry point
+function showNotification(message, type = 'info', roomUrl = null) {
+  NotificationManager.show(message, type, roomUrl);
 }
 
 // Function to handle "Go to Room" button click
 function handleGoToRoom(roomUrl) {
-  chrome.runtime.sendMessage({
+  safeRuntimeSendMessage({
     action: 'goToRoom',
     roomUrl: roomUrl
   }, (response) => {
-    if (chrome.runtime.lastError) {
-      console.error('Error navigating to room:', chrome.runtime.lastError.message);
+    if (response && response.error) {
+      console.error('Error navigating to room:', response.error);
     }
   });
 }
 
 // Function to get W2G logo SVG (using external file)
 function getW2GSvg() {
-  const svgUrl = chrome.runtime.getURL('assets/icons/y2w.svg');
+  // Use cached SVG URL to avoid "Extension context invalidated" errors
+  const svgUrl = cachedSvgUrl || 'assets/icons/y2w.svg';
   return `<img src="${svgUrl}" style="width: 20px; height: 20px;" alt="W2G">`;
 }
 
@@ -379,7 +556,7 @@ function getVideoTitleFromContainer(container) {
     'span#video-title',
     // Less specific but still good
     'h3 a[aria-label]:not([href*="/channel/"]):not([href*="/@"])',
-    'h3.yt-lockup-view-model-wiz__title a[aria-label]',
+    'a.yt-lockup-metadata-view-model__title[aria-label]',
     // Generic but filtered
     'a[aria-label]:not([href*="/channel/"]):not([href*="/@"])'
   ];
@@ -426,6 +603,134 @@ function extractVideoId(url) {
 
 // Function to add W2G button to video thumbnail
 function addButtonToThumbnail(thumbnailElement) {
+  // Handle ytd-playlist-panel-video-renderer structure (playlist videos)
+  if (thumbnailElement.tagName.toLowerCase() === 'ytd-playlist-panel-video-renderer') {
+    // Don't add button if already exists
+    if (thumbnailElement.querySelector('.w2g-thumbnail-button')) {
+      return;
+    }
+
+    // Find the link element with video URL
+    const linkElement = thumbnailElement.querySelector('a#wc-endpoint[href]');
+    if (!linkElement) {
+      return;
+    }
+
+    const videoUrl = linkElement.href;
+    const videoId = extractVideoId(videoUrl);
+    if (!videoId) {
+      return;
+    }
+
+    // Get video title from span#video-title
+    let videoTitle = '';
+    const titleElement = thumbnailElement.querySelector('span#video-title');
+    if (titleElement) {
+      videoTitle = titleElement.textContent.trim();
+    }
+
+    // Clean and validate title
+    videoTitle = cleanVideoTitle(videoTitle);
+
+    // Find the thumbnail container to position the button
+    const thumbnailContainer = thumbnailElement.querySelector('div#thumbnail-container');
+    if (!thumbnailContainer) {
+      return;
+    }
+
+    // Ensure container has position relative
+    if (!thumbnailContainer.style.position || thumbnailContainer.style.position === 'static') {
+      thumbnailContainer.style.position = 'relative';
+    }
+
+    // Create button
+    const button = document.createElement('button');
+    button.className = 'w2g-thumbnail-button youtube playlist-panel';
+    button.title = 'Send to Watch2Gether';
+    button.innerHTML = getW2GSvg();
+
+    // Add click handler
+    button.addEventListener('click', (e) => {
+      try {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (button.classList.contains('processing')) return;
+
+        button.classList.add('processing');
+
+        // First check if API key is valid
+        safeRuntimeSendMessage({ action: 'checkApiKeyValid' }, (response) => {
+        // Check for wrapper errors
+        if (!response || (response.error && response.success === false)) {
+          showNotification('Extension error: ' + (response?.error || 'Unknown error'), 'error');
+          button.classList.remove('processing');
+          return;
+        }
+
+        if (!response.valid) {
+          // No valid API key - open popup
+          showNotification('Please configure your W2G API key', 'error');
+          button.classList.remove('processing');
+
+          // Try to open popup
+          safeRuntimeSendMessage({ action: 'openPopup' }, () => {
+            // Popup opened or failed silently
+          });
+          return;
+        }
+
+        // API key is valid, proceed
+        const fullVideoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+        try {
+          safeRuntimeSendMessage({
+            action: 'sendToW2G',
+            videoUrl: fullVideoUrl,
+            videoTitle: videoTitle
+          }, (response) => {
+            button.classList.remove('processing');
+
+            // Check for wrapper errors
+            if (!response || (response.error && response.success === false)) {
+              showNotification('Extension error: ' + (response?.error || 'Unknown error'), 'error');
+            } else if (response && response.success) {
+              // Show different messages based on action type
+              let message;
+              if (response.action === 'created_room') {
+                message = 'New W2G room created!';
+              } else if (response.action === 'added_to_playlist') {
+                message = response.tabFocused ? 'Video added to playlist!' : 'Video added to W2G playlist!';
+              } else {
+                message = 'Video added to W2G!';
+              }
+
+              showNotification(message, 'success', response.roomUrl);
+              button.classList.add('success');
+              setTimeout(() => {
+                button.classList.remove('success');
+              }, 2000);
+            } else {
+              showNotification(response?.error || 'Failed to add video', 'error');
+            }
+          });
+        } catch (error) {
+          showNotification('Error: ' + error.message, 'error');
+          button.classList.remove('processing');
+        }
+      });
+      } catch (error) {
+        console.error('[Y2W] Error in click handler:', error);
+        button.classList.remove('processing');
+      }
+    });
+
+    // Append button to thumbnail container
+    thumbnailContainer.appendChild(button);
+
+    return;
+  }
+
   // Handle new yt-lockup-view-model structure
   if (thumbnailElement.tagName.toLowerCase() === 'yt-lockup-view-model') {
     // Don't add button if already exists
@@ -434,7 +739,7 @@ function addButtonToThumbnail(thumbnailElement) {
     }
     
     // Find the link element with video URL
-    const linkElement = thumbnailElement.querySelector('a.yt-lockup-view-model-wiz__content-image[href]');
+    const linkElement = thumbnailElement.querySelector('a.yt-lockup-view-model__content-image[href]');
     if (!linkElement) {
       return;
     }
@@ -458,56 +763,56 @@ function addButtonToThumbnail(thumbnailElement) {
     button.innerHTML = getW2GSvg();
     
     // Find the thumbnail container to position the button
-    const thumbnailContainer = thumbnailElement.querySelector('.yt-lockup-view-model-wiz__content-image');
+    const thumbnailContainer = thumbnailElement.querySelector('.yt-lockup-view-model__content-image');
     if (thumbnailContainer) {
       // Make the container relative for absolute positioning
       thumbnailContainer.style.position = 'relative';
       
       // Add click handler
-      button.addEventListener('click', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        if (button.classList.contains('processing')) return;
-        
-        button.classList.add('processing');
-        
-        // First check if API key is valid
-        chrome.runtime.sendMessage({ action: 'checkApiKeyValid' }, (response) => {
-          if (chrome.runtime.lastError) {
-            showNotification('Extension error: ' + chrome.runtime.lastError.message, 'error');
+      button.addEventListener('click', (e) => {
+        try {
+          e.preventDefault();
+          e.stopPropagation();
+
+          if (button.classList.contains('processing')) return;
+
+          button.classList.add('processing');
+
+          // First check if API key is valid
+          safeRuntimeSendMessage({ action: 'checkApiKeyValid' }, (response) => {
+          // Check for wrapper errors
+          if (!response || (response.error && response.success === false)) {
+            showNotification('Extension error: ' + (response?.error || 'Unknown error'), 'error');
             button.classList.remove('processing');
             return;
           }
-          
-          if (!response || !response.valid) {
+
+          if (!response.valid) {
             // No valid API key - open popup
             showNotification('Please configure your W2G API key', 'error');
             button.classList.remove('processing');
-            
+
             // Try to open popup
-            chrome.runtime.sendMessage({ action: 'openPopup' }, (popupResponse) => {
-              if (chrome.runtime.lastError) {
-                // If popup can't be opened programmatically, open options page
-                window.open(chrome.runtime.getURL('popup.html'), '_blank', 'width=400,height=500');
-              }
+            safeRuntimeSendMessage({ action: 'openPopup' }, () => {
+              // Popup opened or failed silently
             });
             return;
           }
-          
+
           // API key is valid, proceed
           const fullVideoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-          
+
           try {
-            chrome.runtime.sendMessage({
+            safeRuntimeSendMessage({
               action: 'sendToW2G',
               videoUrl: fullVideoUrl,
               videoTitle: videoTitle
             }, (response) => {
               button.classList.remove('processing');
-              
-              if (chrome.runtime.lastError) {
-                showNotification('Extension error: ' + chrome.runtime.lastError.message, 'error');
+
+              // Check for wrapper errors
+              if (!response || (response.error && response.success === false)) {
+                showNotification('Extension error: ' + (response?.error || 'Unknown error'), 'error');
               } else if (response && response.success) {
                 // Show different messages based on action type
                 let message;
@@ -533,6 +838,10 @@ function addButtonToThumbnail(thumbnailElement) {
             button.classList.remove('processing');
           }
         });
+        } catch (error) {
+          console.error('[Y2W] Error in click handler:', error);
+          button.classList.remove('processing');
+        }
       });
       
       // Append button to thumbnail container
@@ -593,50 +902,50 @@ function addButtonToThumbnail(thumbnailElement) {
   }
   
   // Add click handler
-  button.addEventListener('click', async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (button.classList.contains('processing')) return;
-    
-    button.classList.add('processing');
-    
-    // First check if API key is valid
-    chrome.runtime.sendMessage({ action: 'checkApiKeyValid' }, (response) => {
-      if (chrome.runtime.lastError) {
-        showNotification('Extension error: ' + chrome.runtime.lastError.message, 'error');
+  button.addEventListener('click', (e) => {
+    try {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (button.classList.contains('processing')) return;
+
+      button.classList.add('processing');
+
+      // First check if API key is valid
+      safeRuntimeSendMessage({ action: 'checkApiKeyValid' }, (response) => {
+      // Check for wrapper errors
+      if (!response || (response.error && response.success === false)) {
+        showNotification('Extension error: ' + (response?.error || 'Unknown error'), 'error');
         button.classList.remove('processing');
         return;
       }
-      
-      if (!response || !response.valid) {
+
+      if (!response.valid) {
         // No valid API key - open popup
         showNotification('Please configure your W2G API key', 'error');
         button.classList.remove('processing');
-        
+
         // Try to open popup
-        chrome.runtime.sendMessage({ action: 'openPopup' }, (popupResponse) => {
-          if (chrome.runtime.lastError) {
-            // If popup can't be opened programmatically, open options page
-            window.open(chrome.runtime.getURL('popup.html'), '_blank', 'width=400,height=500');
-          }
+        safeRuntimeSendMessage({ action: 'openPopup' }, () => {
+          // Popup opened or failed silently
         });
         return;
       }
-      
+
       // API key is valid, proceed
       const fullVideoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-      
+
       try {
-        chrome.runtime.sendMessage({
+        safeRuntimeSendMessage({
           action: 'sendToW2G',
           videoUrl: fullVideoUrl,
           videoTitle: videoTitle
         }, (response) => {
           button.classList.remove('processing');
-          
-          if (chrome.runtime.lastError) {
-            showNotification('Extension error: ' + chrome.runtime.lastError.message, 'error');
+
+          // Check for wrapper errors
+          if (!response || (response.error && response.success === false)) {
+            showNotification('Extension error: ' + (response?.error || 'Unknown error'), 'error');
           } else if (response && response.success) {
             // Show different messages based on action type
             let message;
@@ -662,6 +971,10 @@ function addButtonToThumbnail(thumbnailElement) {
         button.classList.remove('processing');
       }
     });
+    } catch (error) {
+      console.error('[Y2W] Error in click handler:', error);
+      button.classList.remove('processing');
+    }
   });
   
   // Append button to video element
@@ -672,7 +985,7 @@ function addButtonToThumbnail(thumbnailElement) {
 function processVideoThumbnails() {
   // Selectors for different types of video containers on YouTube
   const selectors = [
-    'ytd-video-renderer',              // Search results, home page
+    'ytd-video-renderer',              // Search results, home page, recommendations
     'ytd-compact-video-renderer',      // Sidebar recommendations
     'ytd-grid-video-renderer',         // Grid layout
     'ytd-rich-item-renderer',          // Home page rich grid
@@ -680,11 +993,15 @@ function processVideoThumbnails() {
     'ytm-compact-video-renderer',      // Mobile web compact
     'ytd-reel-item-renderer',          // Shorts
     'ytd-thumbnail',                   // Video thumbnails in watch page sidebar
-    'yt-lockup-view-model'             // New YouTube structure for recommendations
+    'yt-lockup-view-model',            // New YouTube structure for recommendations
+    'yt-lockup-view-model.ytd-item-section-renderer',  // Videos in recommendation sections with ytd-item-section-renderer class
+    'ytd-item-section-renderer ytd-video-renderer',  // Videos in item sections (recommendations below video)
+    'ytd-item-section-renderer ytd-compact-video-renderer',  // Compact videos in item sections
+    'ytd-playlist-panel-video-renderer'  // Playlist panel videos
   ];
-  
+
   const videoElements = document.querySelectorAll(selectors.join(', '));
-  
+
   videoElements.forEach(element => {
     addButtonToThumbnail(element);
   });
@@ -737,16 +1054,39 @@ function setupThumbnailObserver() {
   if (thumbnailObserver) {
     thumbnailObserver.disconnect();
   }
-  
+
   // Create observer for dynamically loaded thumbnails
-  thumbnailObserver = new MutationObserver(() => {
+  thumbnailObserver = new MutationObserver((mutations) => {
+    // Check if any mutation involves playlist panel
+    let hasPlaylistPanel = false;
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        if (node.nodeType === 1) { // Element node
+          if (node.tagName === 'YTD-PLAYLIST-PANEL-VIDEO-RENDERER' ||
+              node.querySelector && node.querySelector('ytd-playlist-panel-video-renderer')) {
+            hasPlaylistPanel = true;
+            break;
+          }
+        }
+      }
+      if (hasPlaylistPanel) break;
+    }
+
     // Debounce processing to avoid excessive calls
     clearTimeout(thumbnailObserver.timeout);
     thumbnailObserver.timeout = setTimeout(() => {
       processVideoThumbnails();
+
+      // If playlist panel detected, retry after a delay to catch late-loading elements
+      if (hasPlaylistPanel) {
+        setTimeout(() => {
+          const playlistItems = document.querySelectorAll('ytd-playlist-panel-video-renderer');
+          playlistItems.forEach(item => addButtonToThumbnail(item));
+        }, 500);
+      }
     }, 300);
   });
-  
+
   // Start observing
   const targetNode = document.querySelector('#content, #page-manager, body');
   if (targetNode) {

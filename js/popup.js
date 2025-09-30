@@ -13,16 +13,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   const form = document.getElementById('settingsForm');
   const apiKeyInput = document.getElementById('apiKey');
   const roomKeyInput = document.getElementById('roomKey');
+  const autoSyncCheckbox = document.getElementById('autoSync');
+  const autoCopyCheckbox = document.getElementById('autoCopy');
   const statusDiv = document.getElementById('status');
-  
-  // Load existing settings
-  const settings = await chrome.storage.sync.get(['apiKey', 'roomKey']);
+
+  // Load existing settings with defaults
+  const settings = await chrome.storage.sync.get(['apiKey', 'roomKey', 'autoSync', 'autoCopy']);
   if (settings.apiKey) {
     apiKeyInput.value = settings.apiKey;
   }
   if (settings.roomKey) {
     roomKeyInput.value = settings.roomKey;
   }
+  // Set toggle defaults: autoSync=true, autoCopy=true
+  autoSyncCheckbox.checked = settings.autoSync !== undefined ? settings.autoSync : true;
+  autoCopyCheckbox.checked = settings.autoCopy !== undefined ? settings.autoCopy : true;
+
+  // Save toggle states immediately when changed
+  autoSyncCheckbox.addEventListener('change', async () => {
+    await chrome.storage.sync.set({ autoSync: autoSyncCheckbox.checked });
+  });
+
+  autoCopyCheckbox.addEventListener('change', async () => {
+    await chrome.storage.sync.set({ autoCopy: autoCopyCheckbox.checked });
+  });
   
   // Handle form submission
   form.addEventListener('submit', async (e) => {
