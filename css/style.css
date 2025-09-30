@@ -75,7 +75,7 @@
 /* Notification styling */
 .w2g-notification {
   position: fixed !important;
-  bottom: 20px !important;
+  bottom: 20px;
   left: 20px !important;
   background-color: #333 !important;
   color: white !important;
@@ -84,24 +84,27 @@
   font-size: 14px !important;
   font-family: Roboto, Arial, sans-serif !important;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
-  z-index: 999999 !important;
-  transform: translateY(100px) !important;
+  z-index: 999999;
+  transform: translateX(-400px) !important;
   opacity: 0 !important;
-  transition: all 0.3s ease !important;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   max-width: 320px !important;
   min-width: 250px !important;
+  min-height: 48px !important;
 }
 
 /* Notification visible state */
 .w2g-notification.show {
-  transform: translateY(0) !important;
+  transform: translateX(0) !important;
   opacity: 1 !important;
 }
 
 /* Notification persistent state (on hover) */
 .w2g-notification.persistent {
   box-shadow: 0 6px 16px rgba(0,0,0,0.2) !important;
-  transform: translateY(-2px) !important;
+  transform: translateX(0) scale(1.02) !important;
 }
 
 /* Success notification */

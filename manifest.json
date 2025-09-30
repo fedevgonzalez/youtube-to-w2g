@@ -10,9 +10,11 @@
   "offline_enabled": false,
   "permissions": [
     "storage",
-    "tabs"
+    "tabs",
+    "scripting"
   ],
   "host_permissions": [
+    "*://*.youtube.com/*",
     "https://w2g.tv/*",
     "https://api.w2g.tv/*"
   ],
@@ -25,6 +27,11 @@
       "js": ["js/content.js"],
       "css": ["css/style.css"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://w2g.tv/*", "*://*.w2g.tv/*"],
+      "js": ["js/w2g-content.js"],
+      "run_at": "document_start"
     }
   ],
   "action": {
