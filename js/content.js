@@ -263,7 +263,7 @@ async function handleSendToW2G(e) {
         w2gButton.classList.remove('processing');
 
         // Try to open popup
-        safeRuntimeSendMessage({ action: 'openPopup' }, (popupResponse) => {
+        safeRuntimeSendMessage({ action: 'openPopup' }, () => {
           // Popup opened or failed silently
         });
         return;
@@ -793,7 +793,7 @@ function addButtonToThumbnail(thumbnailElement) {
             button.classList.remove('processing');
 
             // Try to open popup
-            safeRuntimeSendMessage({ action: 'openPopup' }, (popupResponse) => {
+            safeRuntimeSendMessage({ action: 'openPopup' }, () => {
               // Popup opened or failed silently
             });
             return;
@@ -926,7 +926,7 @@ function addButtonToThumbnail(thumbnailElement) {
         button.classList.remove('processing');
 
         // Try to open popup
-        safeRuntimeSendMessage({ action: 'openPopup' }, (popupResponse) => {
+        safeRuntimeSendMessage({ action: 'openPopup' }, () => {
           // Popup opened or failed silently
         });
         return;
