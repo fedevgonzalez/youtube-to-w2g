@@ -21,14 +21,11 @@
 (function() {
   'use strict';
 
-  console.log('[Y2W] W2G content script loaded');
-
   let streamkeyFound = false;
   const currentUrl = new URL(window.location.href);
   const accessKey = currentUrl.searchParams.get('access_key');
 
   if (!accessKey) {
-    console.log('[Y2W] No access_key in URL, skipping detection');
     return;
   }
 
@@ -39,7 +36,6 @@
     if (streamkeyFound) return;
 
     streamkeyFound = true;
-    console.log(`[Y2W] Streamkey found via ${source}:`, streamkey);
 
     chrome.runtime.sendMessage({
       action: 'streamkeyFound',
@@ -49,8 +45,6 @@
     }, (response) => {
       if (chrome.runtime.lastError) {
         console.error('[Y2W] Error sending streamkey:', chrome.runtime.lastError);
-      } else {
-        console.log('[Y2W] Streamkey sent to background successfully');
       }
     });
   }
@@ -415,8 +409,6 @@
   function runDetection() {
     if (streamkeyFound) return;
 
-    console.log('[Y2W] Running streamkey detection...');
-
     // Try all methods (ordered by reliability)
     if (checkUrlPath()) return;
     if (checkNextJsData()) return;
@@ -424,8 +416,6 @@
     if (checkLinksAndButtons()) return;
     if (parseDOMForStreamkey()) return;
     if (checkLocalStorage()) return;
-
-    console.log('[Y2W] Streamkey not found yet, will keep monitoring');
   }
 
   // Run detection on page load

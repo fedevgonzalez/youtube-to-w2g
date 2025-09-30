@@ -24,7 +24,6 @@ let autoCopyState = {
 async function notifyAutoCopyIfNeeded(url, tabId) {
   // If we've already notified this tab, skip
   if (autoCopyState.notifiedTabs.has(tabId)) {
-    console.log('[Y2W] Auto-copy: Skipping notification (tab already notified)');
     return;
   }
 
@@ -33,7 +32,6 @@ async function notifyAutoCopyIfNeeded(url, tabId) {
 
   // Show notification
   await showNotification('Auto-copy: Room URL copied to clipboard!', 'success');
-  console.log('[Y2W] Auto-copy: First notification for tab', tabId);
 }
 
 // Clean up closed tabs from notification tracking
@@ -71,20 +69,17 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         // Extract from ?access_key= parameter (need to lookup streamkey)
         else if (url.searchParams.has('access_key')) {
           const accessKey = url.searchParams.get('access_key');
-          console.log('Auto-sync: Found access_key URL:', accessKey);
 
           // Load stored room info to find matching roomKey
           const roomData = await chrome.storage.sync.get(['roomInfo', 'roomKey']);
           if (roomData.roomInfo && roomData.roomInfo.accessKey === accessKey) {
             // We have this room's info, use its roomKey
             newRoomKey = roomData.roomInfo.roomKey;
-            console.log('Auto-sync: Matched access_key to roomKey:', newRoomKey);
             // Reset last unknown access key since we found a match
             lastUnknownAccessKey = null;
           } else if (roomData.roomKey && roomData.roomKey.trim()) {
             // User has manually saved a roomKey - associate it with this access_key
             newRoomKey = roomData.roomKey;
-            console.log('Auto-sync: Using manually saved roomKey for access_key:', newRoomKey);
 
             // Create roomInfo to remember this association
             const roomInfo = {
@@ -100,8 +95,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
             lastUnknownAccessKey = null;
           } else {
             // Unknown access_key and no manual roomKey - can't sync without streamkey
-            console.log('Auto-sync: Unknown access_key - room not created through extension');
-
             // Only show notification if this is a new unknown access_key
             // (different from the previous one or from the stored one)
             const shouldNotify = accessKey !== lastUnknownAccessKey &&
@@ -119,7 +112,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
           // Only sync and notify if room key changed
           if (newRoomKey !== currentRoomKey) {
-            console.log('Auto-sync: Syncing room key:', newRoomKey);
             await chrome.storage.sync.set({ roomKey: newRoomKey });
 
             // Show notification via content script
@@ -181,8 +173,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
  */
 async function handleStreamkeyFound(streamkey, accessKey, source) {
   try {
-    console.log(`[Y2W] Streamkey received from W2G (${source}):`, streamkey);
-
     // Check if auto-sync is enabled
     const settings = await chrome.storage.sync.get(['autoSync', 'roomKey']);
     if (settings.autoSync === false) {
@@ -192,7 +182,6 @@ async function handleStreamkeyFound(streamkey, accessKey, source) {
     // Check if this is a new/different room
     const currentRoomKey = settings.roomKey;
     if (streamkey === currentRoomKey) {
-      console.log('[Y2W] Streamkey already synced, ignoring');
       return { success: true, message: 'Already synced' };
     }
 
@@ -210,8 +199,6 @@ async function handleStreamkeyFound(streamkey, accessKey, source) {
       roomKey: streamkey,
       roomInfo: roomInfo
     });
-
-    console.log('[Y2W] Streamkey synced successfully:', streamkey);
 
     // Show notification
     await showNotification(`Auto-sync: Room ${streamkey} synced!`, 'success');
@@ -240,8 +227,6 @@ async function handleStreamkeyFound(streamkey, accessKey, source) {
  */
 async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
   try {
-    console.log('Sending video to W2G via API:', videoUrl);
-    
     // Get configuration from storage
     const config = await chrome.storage.sync.get(['apiKey', 'roomKey', 'createNewRoom']);
     
@@ -253,14 +238,12 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
     
     // If createNewRoom is enabled or no room key, create a new room
     if (config.createNewRoom || !roomKey) {
-      console.log('Creating new W2G room...');
-      
       const createUrl = 'https://api.w2g.tv/rooms/create.json';
       const createBody = {
         w2g_api_key: config.apiKey,
         share: videoUrl
       };
-      
+
       const createResponse = await fetch(createUrl, {
         method: 'POST',
         headers: {
@@ -269,14 +252,13 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
         },
         body: JSON.stringify(createBody)
       });
-      
+
       if (!createResponse.ok) {
         const errorText = await createResponse.text();
         throw new Error(`Failed to create room: ${createResponse.status} - ${errorText}`);
       }
-      
+
       const roomData = await createResponse.json();
-      console.log('Created room:', roomData);
       
       if (!roomData || !roomData.streamkey) {
         throw new Error('Invalid room creation response - missing streamkey');
@@ -316,7 +298,6 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
       if (autoCopySettings.autoCopy !== false) {
         try {
           await copyToClipboard(w2gUrl);
-          console.log('Auto-copy: Room URL copied to clipboard');
           // Only notify once per tab
           if (tabId) {
             await notifyAutoCopyIfNeeded(w2gUrl, tabId);
@@ -348,9 +329,7 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
           }
         ]
       };
-      
-      console.log('API Request:', apiUrl, requestBody);
-      
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -366,8 +345,6 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
 
         if (response.status === 403) {
           // If forbidden, room doesn't belong to user - create a new room instead
-          console.log('Access forbidden (not room member/owner), creating new room...');
-
           // Show notification explaining what happened
           await showNotification('Room access denied. Creating new room...', 'info');
 
@@ -391,12 +368,9 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
       if (contentType && contentType.includes('application/json') && contentLength !== '0') {
         try {
           result = await response.json();
-          console.log('W2G API response:', result);
         } catch (jsonError) {
-          console.log('Response is not valid JSON, but request was successful');
+          // Response is not valid JSON, but request was successful
         }
-      } else {
-        console.log('Response has no JSON content, but request was successful');
       }
       
       // Get stored room info for URL building
@@ -410,22 +384,22 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
       } else {
         w2gUrl = `https://w2g.tv/rooms/${roomKey}`;
       }
-      
-      // Find and focus W2G tab if it exists
+
+      // Find W2G tab if it exists (for tabFocused status)
       const tabs = await chrome.tabs.query({ url: '*://w2g.tv/*' });
       const w2gTab = tabs.find(tab => tab.url && (tab.url.includes(roomKey) ||
         (roomInfo.accessKey && tab.url.includes(roomInfo.accessKey))));
 
-      if (w2gTab) {
-        await chrome.tabs.update(w2gTab.id, { active: true });
-      }
+      // Auto-focus W2G tab (commented out - user preference)
+      // if (w2gTab) {
+      //   await chrome.tabs.update(w2gTab.id, { active: true });
+      // }
 
       // Check if auto-copy is enabled and copy room URL
       const autoCopySettings = await chrome.storage.sync.get(['autoCopy']);
       if (autoCopySettings.autoCopy !== false) {
         try {
           await copyToClipboard(w2gUrl);
-          console.log('Auto-copy: Room URL copied to clipboard');
           // Only notify once per tab
           if (tabId) {
             await notifyAutoCopyIfNeeded(w2gUrl, tabId);
@@ -460,8 +434,6 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
  */
 async function validateApiKey(apiKey) {
   try {
-    console.log('Validating API key...');
-    
     const createUrl = 'https://api.w2g.tv/rooms/create.json';
     const createBody = {
       w2g_api_key: apiKey,
@@ -550,8 +522,6 @@ async function checkApiKeyValid() {
  */
 async function handleGoToRoom(roomUrl) {
   try {
-    console.log('Navigating to W2G room:', roomUrl);
-
     // Extract identifiers from URL to match existing tabs
     const url = new URL(roomUrl);
     let searchParams = [];
@@ -616,7 +586,6 @@ async function copyToClipboard(text) {
     const tabs = await chrome.tabs.query({ url: '*://*.youtube.com/*', active: true, currentWindow: true });
 
     if (tabs.length === 0) {
-      console.log('No active YouTube tab found, trying all YouTube tabs');
       const allYtTabs = await chrome.tabs.query({ url: '*://*.youtube.com/*' });
       if (allYtTabs.length === 0) {
         throw new Error('No YouTube tabs found');
@@ -636,8 +605,6 @@ async function copyToClipboard(text) {
       },
       args: [text]
     });
-
-    console.log('Text copied to clipboard via YouTube tab:', text);
   } catch (error) {
     console.error('Error copying to clipboard:', error);
     throw error;
@@ -664,8 +631,8 @@ async function showNotification(message, type = 'info', roomUrl = null) {
         message: message,
         type: type,
         roomUrl: roomUrl
-      }).catch(error => {
-        console.log('Could not send notification to content script:', error);
+      }).catch(() => {
+        // Content script may not be loaded yet
       });
     }
   } catch (error) {
