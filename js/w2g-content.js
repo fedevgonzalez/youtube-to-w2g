@@ -5,10 +5,15 @@
  * join rooms using access_key URLs. This enables syncing third-party rooms.
  *
  * Detection methods:
- * 1. Intercepts API responses to find streamkey in JSON data
- * 2. Searches window object for W2G configuration
- * 3. Parses DOM for room data
- * 4. Checks localStorage for cached room info
+ * 1. Checks URL path for streamkey patterns (/rooms/{key})
+ * 2. Looks for Next.js data in script tags (#__NEXT_DATA__)
+ * 3. Searches window object for W2G configuration
+ * 4. Extracts streamkey from links and copy buttons
+ * 5. Parses DOM for room data attributes
+ * 6. Checks localStorage for cached room info
+ * 7. Intercepts API responses (fetch/XHR) to find streamkey in JSON
+ * 8. Monitors clipboard operations when copy button is clicked
+ * 9. Watches URL changes for SPA navigation
  *
  * @file w2g-content.js
  */
@@ -169,6 +174,121 @@
   }
 
   /**
+   * Check URL path for streamkey patterns
+   */
+  function checkUrlPath() {
+    const url = new URL(window.location.href);
+    const path = url.pathname;
+
+    // First check for ?r= query parameter (short format)
+    if (url.searchParams.has('r')) {
+      const streamkey = url.searchParams.get('r');
+      if (streamkey && streamkey.length >= 10) {
+        reportStreamkey(streamkey, 'url-query-param');
+        return true;
+      }
+    }
+
+    // Pattern: /rooms/{streamkey} or /en/room/{streamkey} or /{streamkey}
+    const patterns = [
+      /\/rooms?\/([a-z0-9]+)/i,
+      /\/[a-z]{2}\/rooms?\/([a-z0-9]+)/i,
+      /^\/([a-z0-9]{10,})$/i  // Direct streamkey in path
+    ];
+
+    for (const pattern of patterns) {
+      const match = path.match(pattern);
+      if (match && match[1]) {
+        reportStreamkey(match[1], 'url-path');
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Extract streamkey from links and buttons
+   */
+  function checkLinksAndButtons() {
+    // Look for links containing w2g.tv
+    const links = document.querySelectorAll('a[href*="w2g.tv"], a[href*="/rooms/"]');
+    for (const link of links) {
+      let href = link.getAttribute('href');
+      if (href) {
+        // Decode URL-encoded hrefs (like mailto: links)
+        try {
+          href = decodeURIComponent(href);
+        } catch (e) {
+          // If decode fails, use original
+        }
+
+        // Check for ?r= pattern (short format)
+        let match = href.match(/[?&]r=([a-z0-9]+)/i);
+        if (match && match[1]) {
+          reportStreamkey(match[1], 'link-href-query');
+          return true;
+        }
+
+        // Check for /rooms/ pattern (long format)
+        match = href.match(/\/rooms?\/([a-z0-9]+)/i);
+        if (match && match[1]) {
+          reportStreamkey(match[1], 'link-href-path');
+          return true;
+        }
+      }
+    }
+
+    // Look for copy buttons with data-w2g attribute
+    const copyButtons = document.querySelectorAll('[data-w2g*="copy"]');
+    for (const button of copyButtons) {
+      // Try to find nearby text or data that might contain the room URL
+      const parent = button.closest('[class*="room"], [class*="invite"]');
+      if (parent) {
+        const text = parent.textContent;
+
+        // Check for ?r= pattern
+        let match = text.match(/[?&]r=([a-z0-9]+)/i);
+        if (match && match[1]) {
+          reportStreamkey(match[1], 'copy-button-query');
+          return true;
+        }
+
+        // Check for /rooms/ pattern
+        match = text.match(/w2g\.tv\/rooms?\/([a-z0-9]+)/i);
+        if (match && match[1]) {
+          reportStreamkey(match[1], 'copy-button-path');
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Check for Next.js or React data in script tags
+   */
+  function checkNextJsData() {
+    // Look for Next.js data
+    const nextScript = document.querySelector('script#__NEXT_DATA__');
+    if (nextScript) {
+      try {
+        const data = JSON.parse(nextScript.textContent);
+        const streamkey = findStreamkeyInObject(data, 4); // Deeper search
+        if (streamkey) {
+          reportStreamkey(streamkey, 'nextjs-data');
+          return true;
+        }
+      } catch (e) {
+        // Not valid JSON, continue
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * Parse DOM for room data
    */
   function parseDOMForStreamkey() {
@@ -239,6 +359,33 @@
   }
 
   /**
+   * Monitor clipboard operations (when copy button is clicked)
+   */
+  document.addEventListener('copy', (e) => {
+    if (streamkeyFound) return;
+
+    // Try to get clipboard data
+    const clipboardData = e.clipboardData;
+    if (clipboardData) {
+      const text = clipboardData.getData('text');
+      if (text) {
+        // Check for ?r= pattern (short format)
+        let match = text.match(/[?&]r=([a-z0-9]+)/i);
+        if (match && match[1]) {
+          reportStreamkey(match[1], 'clipboard-query');
+          return;
+        }
+
+        // Check for /rooms/ pattern (long format)
+        match = text.match(/w2g\.tv\/rooms?\/([a-z0-9]+)/i);
+        if (match && match[1]) {
+          reportStreamkey(match[1], 'clipboard-path');
+        }
+      }
+    }
+  });
+
+  /**
    * Monitor URL changes (for SPA navigation)
    */
   let lastUrl = window.location.href;
@@ -252,6 +399,13 @@
       if (url.searchParams.has('r')) {
         reportStreamkey(url.searchParams.get('r'), 'url-redirect');
       }
+
+      // Also check path in case URL changed to /rooms/{streamkey}
+      const path = url.pathname;
+      const match = path.match(/\/rooms?\/([a-z0-9]+)/i);
+      if (match && match[1]) {
+        reportStreamkey(match[1], 'url-spa-navigation');
+      }
     }
   }).observe(document, { subtree: true, childList: true });
 
@@ -263,8 +417,11 @@
 
     console.log('[Y2W] Running streamkey detection...');
 
-    // Try all methods
+    // Try all methods (ordered by reliability)
+    if (checkUrlPath()) return;
+    if (checkNextJsData()) return;
     if (searchWindowObject()) return;
+    if (checkLinksAndButtons()) return;
     if (parseDOMForStreamkey()) return;
     if (checkLocalStorage()) return;
 

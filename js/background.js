@@ -74,15 +74,32 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
           console.log('Auto-sync: Found access_key URL:', accessKey);
 
           // Load stored room info to find matching roomKey
-          const roomData = await chrome.storage.sync.get(['roomInfo']);
+          const roomData = await chrome.storage.sync.get(['roomInfo', 'roomKey']);
           if (roomData.roomInfo && roomData.roomInfo.accessKey === accessKey) {
             // We have this room's info, use its roomKey
             newRoomKey = roomData.roomInfo.roomKey;
             console.log('Auto-sync: Matched access_key to roomKey:', newRoomKey);
             // Reset last unknown access key since we found a match
             lastUnknownAccessKey = null;
+          } else if (roomData.roomKey && roomData.roomKey.trim()) {
+            // User has manually saved a roomKey - associate it with this access_key
+            newRoomKey = roomData.roomKey;
+            console.log('Auto-sync: Using manually saved roomKey for access_key:', newRoomKey);
+
+            // Create roomInfo to remember this association
+            const roomInfo = {
+              roomKey: newRoomKey,
+              streamkey: newRoomKey,
+              accessKey: accessKey,
+              created: Date.now(),
+              source: 'manual-association'
+            };
+            await chrome.storage.sync.set({ roomInfo: roomInfo });
+
+            // Reset last unknown access key
+            lastUnknownAccessKey = null;
           } else {
-            // Unknown access_key - can't sync without streamkey
+            // Unknown access_key and no manual roomKey - can't sync without streamkey
             console.log('Auto-sync: Unknown access_key - room not created through extension');
 
             // Only show notification if this is a new unknown access_key
