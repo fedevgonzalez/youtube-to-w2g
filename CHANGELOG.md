@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-01-14
+
+### Quick Join!
+Skip the intro modal and get straight to watching! The new **Quick Join** feature automatically clicks "Join the Room" when you enter W2G rooms.
+
+### Added
+- **Quick Join Feature** - Auto-dismiss W2G intro modal when entering rooms
+  - New toggle in extension settings (disabled by default)
+  - Uses MutationObserver to detect when the modal appears
+  - Multiple retry attempts for reliable detection
+- **Endscreen Buttons** - Y2W buttons now appear on YouTube endscreen video thumbnails
+  - Works in W2G's embedded YouTube player
+  - Inline SVG injection for cross-origin compatibility
+  - Positioned inside each video thumbnail for accurate targeting
+
+### Enhanced
+- **Clipboard Operations** - Now tries W2G tabs when no YouTube tabs available
+  - Falls back through multiple tab search strategies
+  - More reliable clipboard copy across different contexts
+- **Room URL Format** - Always uses short format `https://w2g.tv/?r={streamkey}`
+  - Consistent, shareable URLs across all operations
+  - Easier to copy and share with friends
+
+### Fixed
+- Button positioning in YouTube endscreen - each button now appears inside its own video thumbnail
+- `roomInfo is not defined` error when copying room URLs
+- CSS styling conflicts with YouTube's endscreen layout
+
+### Technical Details
+- Endscreen buttons use inline SVG to avoid chrome-extension:// URL restrictions in iframes
+- Event propagation properly stopped to prevent clicks from navigating away
+- Quick Join observer auto-disconnects after 10 seconds to prevent memory leaks
+
 ## [1.1.0] - 2025-09-30
 
 ### 🔄 Auto-Sync Magic!
