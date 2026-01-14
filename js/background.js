@@ -282,14 +282,9 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
         roomInfo: roomInfo
       });
       
-      // Build room URL - try with access_key first if available
-      let w2gUrl;
-      if (roomInfo.accessKey) {
-        w2gUrl = `https://w2g.tv/en/room/?access_key=${roomInfo.accessKey}`;
-      } else {
-        w2gUrl = `https://w2g.tv/rooms/${roomKey}`;
-      }
-      
+      // Build room URL - always use short format with streamkey
+      const w2gUrl = `https://w2g.tv/?r=${roomKey}`;
+
       // Open the new room
       await chrome.tabs.create({ url: w2gUrl });
 
@@ -373,22 +368,12 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
         }
       }
       
-      // Get stored room info for URL building
-      const storedData = await chrome.storage.sync.get(['roomInfo']);
-      const roomInfo = storedData.roomInfo || {};
-      
-      // Build room URL - try with access_key first if available
-      let w2gUrl;
-      if (roomInfo.accessKey) {
-        w2gUrl = `https://w2g.tv/en/room/?access_key=${roomInfo.accessKey}`;
-      } else {
-        w2gUrl = `https://w2g.tv/rooms/${roomKey}`;
-      }
+      // Build room URL - always use short format with streamkey
+      const w2gUrl = `https://w2g.tv/?r=${roomKey}`;
 
       // Find W2G tab if it exists (for tabFocused status)
       const tabs = await chrome.tabs.query({ url: '*://w2g.tv/*' });
-      const w2gTab = tabs.find(tab => tab.url && (tab.url.includes(roomKey) ||
-        (roomInfo.accessKey && tab.url.includes(roomInfo.accessKey))));
+      const w2gTab = tabs.find(tab => tab.url && tab.url.includes(roomKey));
 
       // Auto-focus W2G tab (commented out - user preference)
       // if (w2gTab) {
@@ -415,7 +400,6 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
         action: 'added_to_playlist',
         roomUrl: w2gUrl,
         roomKey: roomKey,
-        accessKey: roomInfo.accessKey,
         tabFocused: !!w2gTab
       };
     }
@@ -582,20 +566,33 @@ async function handleGoToRoom(roomUrl) {
  */
 async function copyToClipboard(text) {
   try {
-    // Find active YouTube tabs
-    const tabs = await chrome.tabs.query({ url: '*://*.youtube.com/*', active: true, currentWindow: true });
+    // Find active tab - try YouTube first, then W2G
+    let tabs = await chrome.tabs.query({ url: '*://*.youtube.com/*', active: true, currentWindow: true });
 
     if (tabs.length === 0) {
-      const allYtTabs = await chrome.tabs.query({ url: '*://*.youtube.com/*' });
-      if (allYtTabs.length === 0) {
-        throw new Error('No YouTube tabs found');
-      }
-      tabs.push(allYtTabs[0]);
+      // Try W2G tabs
+      tabs = await chrome.tabs.query({ url: '*://w2g.tv/*', active: true, currentWindow: true });
+    }
+
+    if (tabs.length === 0) {
+      // Try any YouTube tab
+      tabs = await chrome.tabs.query({ url: '*://*.youtube.com/*' });
+    }
+
+    if (tabs.length === 0) {
+      // Try any W2G tab
+      tabs = await chrome.tabs.query({ url: '*://w2g.tv/*' });
+    }
+
+    if (tabs.length === 0) {
+      // No suitable tabs found - skip clipboard copy silently
+      console.log('No YouTube or W2G tabs found for clipboard copy');
+      return;
     }
 
     const tabId = tabs[0].id;
 
-    // Inject and execute clipboard write in the YouTube page context
+    // Inject and execute clipboard write in the tab context
     await chrome.scripting.executeScript({
       target: { tabId: tabId },
       func: (textToCopy) => {
@@ -607,7 +604,7 @@ async function copyToClipboard(text) {
     });
   } catch (error) {
     console.error('Error copying to clipboard:', error);
-    throw error;
+    // Don't throw - clipboard is a nice-to-have feature
   }
 }
 

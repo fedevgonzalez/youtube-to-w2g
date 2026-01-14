@@ -21,6 +21,66 @@
 (function() {
   'use strict';
 
+  // =====================================================
+  // QUICK JOIN FUNCTIONALITY
+  // =====================================================
+
+  /**
+   * Quick Join: Auto-click "Join the Room" button when entering W2G rooms
+   */
+  function initQuickJoin() {
+    chrome.storage.sync.get(['quickJoin'], (settings) => {
+      if (!settings.quickJoin) return;
+
+      // Function to click the join button
+      const clickJoinButton = () => {
+        const joinButton = document.getElementById('w2g-join-button');
+        if (joinButton && joinButton.offsetParent !== null) {
+          joinButton.click();
+          return true;
+        }
+        return false;
+      };
+
+      // Try immediately
+      if (document.readyState !== 'loading') {
+        if (clickJoinButton()) return;
+      }
+
+      // Try when DOM is ready
+      document.addEventListener('DOMContentLoaded', () => {
+        if (clickJoinButton()) return;
+
+        // Watch for the modal to appear
+        const observer = new MutationObserver((mutations, obs) => {
+          if (clickJoinButton()) {
+            obs.disconnect();
+          }
+        });
+
+        observer.observe(document.body || document.documentElement, {
+          childList: true,
+          subtree: true
+        });
+
+        // Stop watching after 10 seconds
+        setTimeout(() => observer.disconnect(), 10000);
+      });
+
+      // Also try after short delays (modal might load async)
+      setTimeout(clickJoinButton, 500);
+      setTimeout(clickJoinButton, 1000);
+      setTimeout(clickJoinButton, 2000);
+    });
+  }
+
+  // Initialize Quick Join
+  initQuickJoin();
+
+  // =====================================================
+  // STREAMKEY DETECTION (existing functionality)
+  // =====================================================
+
   let streamkeyFound = false;
   const currentUrl = new URL(window.location.href);
   const accessKey = currentUrl.searchParams.get('access_key');

@@ -317,3 +317,121 @@ ytd-item-section-renderer ytd-compact-video-renderer:hover .w2g-thumbnail-button
   bottom: 8px !important;
   left: 8px !important;
 }
+
+/* =====================================================
+   EMBEDDED PLAYER / ENDSCREEN STYLES (for W2G iframe)
+   ===================================================== */
+
+/* Endscreen button styling */
+.w2g-endscreen-button {
+  position: absolute !important;
+  bottom: 8px !important;
+  left: 8px !important;
+  width: 36px !important;
+  height: 36px !important;
+  background-color: rgba(0, 0, 0, 0.85) !important;
+  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  opacity: 1 !important;
+  transition: all 0.2s ease !important;
+  z-index: 2147483647 !important;
+  padding: 6px !important;
+}
+
+/* Hover effect */
+.w2g-endscreen-button:hover {
+  background-color: rgba(0, 0, 0, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  transform: scale(1.1) !important;
+}
+
+/* Active state */
+.w2g-endscreen-button:active {
+  transform: scale(0.95) !important;
+}
+
+/* Processing state */
+.w2g-endscreen-button.processing {
+  pointer-events: none !important;
+  background-color: rgba(255, 152, 0, 0.8) !important;
+  border-color: rgba(255, 152, 0, 0.9) !important;
+}
+
+.w2g-endscreen-button.processing img,
+.w2g-endscreen-button.processing svg {
+  animation: w2g-spin 1s linear infinite !important;
+}
+
+/* Success state */
+.w2g-endscreen-button.success {
+  background-color: rgba(76, 175, 80, 0.9) !important;
+  border-color: rgba(76, 175, 80, 1) !important;
+}
+
+/* Icon in endscreen button */
+.w2g-endscreen-button img,
+.w2g-endscreen-button svg {
+  width: 22px !important;
+  height: 22px !important;
+}
+
+/* Embedded player notification */
+.w2g-embed-notification {
+  position: fixed !important;
+  top: 20px !important;
+  left: 50% !important;
+  transform: translateX(-50%) translateY(-100px) !important;
+  background-color: #333 !important;
+  color: white !important;
+  padding: 12px 20px !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  font-family: Roboto, Arial, sans-serif !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  z-index: 999999 !important;
+  opacity: 0 !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  max-width: 300px !important;
+  text-align: center !important;
+}
+
+.w2g-embed-notification.show {
+  transform: translateX(-50%) translateY(0) !important;
+  opacity: 1 !important;
+}
+
+.w2g-embed-notification.success {
+  background-color: #4CAF50 !important;
+}
+
+.w2g-embed-notification.error {
+  background-color: #f44336 !important;
+}
+
+.w2g-embed-notification.info {
+  background-color: #2196F3 !important;
+}
+
+/* Adjust for smaller embedded players */
+@media (max-width: 400px) {
+  .w2g-endscreen-button {
+    width: 28px !important;
+    height: 28px !important;
+    padding: 4px !important;
+  }
+
+  .w2g-endscreen-button img,
+  .w2g-endscreen-button svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .w2g-embed-notification {
+    font-size: 12px !important;
+    padding: 8px 16px !important;
+  }
+}

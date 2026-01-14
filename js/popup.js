@@ -15,19 +15,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   const roomKeyInput = document.getElementById('roomKey');
   const autoSyncCheckbox = document.getElementById('autoSync');
   const autoCopyCheckbox = document.getElementById('autoCopy');
+  const quickJoinCheckbox = document.getElementById('quickJoin');
   const statusDiv = document.getElementById('status');
 
   // Load existing settings with defaults
-  const settings = await chrome.storage.sync.get(['apiKey', 'roomKey', 'autoSync', 'autoCopy']);
+  const settings = await chrome.storage.sync.get(['apiKey', 'roomKey', 'autoSync', 'autoCopy', 'quickJoin']);
   if (settings.apiKey) {
     apiKeyInput.value = settings.apiKey;
   }
   if (settings.roomKey) {
     roomKeyInput.value = settings.roomKey;
   }
-  // Set toggle defaults: autoSync=true, autoCopy=true
+  // Set toggle defaults: autoSync=true, autoCopy=true, quickJoin=false
   autoSyncCheckbox.checked = settings.autoSync !== undefined ? settings.autoSync : true;
   autoCopyCheckbox.checked = settings.autoCopy !== undefined ? settings.autoCopy : true;
+  quickJoinCheckbox.checked = settings.quickJoin !== undefined ? settings.quickJoin : false;
 
   // Save toggle states immediately when changed
   autoSyncCheckbox.addEventListener('change', async () => {
@@ -36,6 +38,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   autoCopyCheckbox.addEventListener('change', async () => {
     await chrome.storage.sync.set({ autoCopy: autoCopyCheckbox.checked });
+  });
+
+  quickJoinCheckbox.addEventListener('change', async () => {
+    await chrome.storage.sync.set({ quickJoin: quickJoinCheckbox.checked });
   });
   
   // Handle form submission
