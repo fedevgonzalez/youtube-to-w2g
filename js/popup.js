@@ -31,6 +31,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   autoCopyCheckbox.checked = settings.autoCopy !== undefined ? settings.autoCopy : true;
   quickJoinCheckbox.checked = settings.quickJoin !== undefined ? settings.quickJoin : false;
 
+  // If a previous real request already proved the saved key invalid,
+  // surface that here instead of staying silent (no network request -
+  // just reads the cache background.js keeps from real usage).
+  if (settings.apiKey) {
+    chrome.runtime.sendMessage({ action: 'checkApiKeyValid' }, (response) => {
+      if (chrome.runtime.lastError) {
+        return;
+      }
+      if (response && response.hasApiKey && !response.valid) {
+        showStatus('Your saved API key was rejected by W2G. Please check it and save again.', 'error');
+      }
+    });
+  }
+
   // Save toggle states immediately when changed
   autoSyncCheckbox.addEventListener('change', async () => {
     await chrome.storage.sync.set({ autoSync: autoSyncCheckbox.checked });
@@ -56,73 +70,46 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         await chrome.storage.sync.set({
           apiKey: '',
-          roomKey: roomKey,
-          apiKeyValid: false,
-          apiKeyLastValidated: 0
+          roomKey: roomKey
         });
-        
+        await chrome.storage.sync.remove(['apiKeyValid', 'apiKeyValidFor']);
+
         showStatus('Settings cleared successfully!', 'success');
-        
+
         // Close popup after a short delay
         setTimeout(() => {
           window.close();
         }, 1500);
-        
+
       } catch (error) {
         console.error('Error saving settings:', error);
         showStatus('Error saving settings: ' + error.message, 'error');
       }
       return;
     }
-    
-    // Show validating status
-    showStatus('Validating API key...', 'info');
-    
+
+    // There is no side-effect-free way to validate a W2G API key (every
+    // documented endpoint creates or modifies a room), so we save directly
+    // and let the first real send confirm validity (see background.js
+    // handleSendToW2G / checkApiKeyValid).
     try {
-      // Validate API key
-      chrome.runtime.sendMessage({
-        action: 'validateApiKey',
-        apiKey: apiKey
-      }, async (response) => {
-        if (chrome.runtime.lastError) {
-          console.error('Chrome runtime error:', chrome.runtime.lastError);
-          showStatus('Extension error: ' + chrome.runtime.lastError.message, 'error');
-          return;
-        }
-        
-        if (!response || !response.success) {
-          showStatus(response?.error || 'Failed to validate API key', 'error');
-          return;
-        }
-        
-        if (!response.valid) {
-          showStatus('Invalid API key. Please check your API key and try again.', 'error');
-          return;
-        }
-        
-        // API key is valid, save settings
-        try {
-          await chrome.storage.sync.set({
-            apiKey: apiKey,
-            roomKey: roomKey
-          });
-          
-          showStatus('Settings saved successfully! API key validated.', 'success');
-          
-          // Close popup after a short delay
-          setTimeout(() => {
-            window.close();
-          }, 1500);
-          
-        } catch (error) {
-          console.error('Error saving settings:', error);
-          showStatus('Error saving settings: ' + error.message, 'error');
-        }
+      await chrome.storage.sync.set({
+        apiKey: apiKey,
+        roomKey: roomKey
       });
-      
+      // Reset any cached validity from a previous key - it doesn't apply here.
+      await chrome.storage.sync.remove(['apiKeyValid', 'apiKeyValidFor']);
+
+      showStatus("Settings saved! We'll confirm your API key the next time you send a video.", 'success');
+
+      // Close popup after a short delay
+      setTimeout(() => {
+        window.close();
+      }, 1500);
+
     } catch (error) {
-      console.error('Error:', error);
-      showStatus('Error: ' + error.message, 'error');
+      console.error('Error saving settings:', error);
+      showStatus('Error saving settings: ' + error.message, 'error');
     }
   });
   
