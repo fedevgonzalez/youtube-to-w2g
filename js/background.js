@@ -254,7 +254,7 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
         if (createResponse.status === 401 || createResponse.status === 403) {
           // Real request confirms the key itself is invalid - cache this
           // so checkApiKeyValid can surface it without another API call.
-          await chrome.storage.sync.set({ apiKeyValid: false });
+          await setApiKeyValidity(config.apiKey, false);
           throw new Error('Invalid API key. Please check your API key in the extension settings.');
         }
 
@@ -279,13 +279,15 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
         created: Date.now()
       };
 
-      // Room creation succeeded - this is a real, effectful confirmation
-      // that the API key is valid, so cache it alongside the room info.
+      // Save the room information
       await chrome.storage.sync.set({
         roomKey: roomKey,
-        roomInfo: roomInfo,
-        apiKeyValid: true
+        roomInfo: roomInfo
       });
+
+      // Room creation succeeded - this is a real, effectful confirmation
+      // that the API key is valid, so cache it.
+      await setApiKeyValidity(config.apiKey, true);
       
       // Build room URL - always use short format with streamkey
       const w2gUrl = `https://w2g.tv/?r=${roomKey}`;
@@ -342,6 +344,13 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('API Error Response:', response.status, errorText);
+
+        if (response.status === 401) {
+          // Unauthorized: the key itself is invalid. Unlike 403 below, this
+          // is not room-ownership related - cache it as a real result.
+          await setApiKeyValidity(config.apiKey, false);
+          throw new Error('Invalid API key. Please check your API key in the extension settings.');
+        }
 
         if (response.status === 403) {
           // If forbidden, room doesn't belong to user - create a new room instead
@@ -416,26 +425,67 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
 }
 
 /**
+ * Short fingerprint identifying which API key a cached validity result
+ * belongs to, so a result produced by one key is never applied to another.
+ *
+ * @param {string|null|undefined} apiKey
+ * @returns {string|null}
+ */
+function keyFingerprint(apiKey) {
+  return apiKey ? apiKey.slice(-6) : null;
+}
+
+/**
+ * Caches whether a real API request (create room, or add to playlist)
+ * succeeded or failed with an invalid-key response, tagged with a
+ * fingerprint of the key that produced the result.
+ *
+ * Guards against a stale write: if the user changes/clears the API key
+ * while a request made with the old key is still in flight (or chrome.storage.sync
+ * synced a different key from another device), a late-arriving result for
+ * that old key is discarded instead of being applied to the current key.
+ *
+ * @param {string} apiKeyUsed - The API key that produced this result
+ * @param {boolean} valid
+ */
+async function setApiKeyValidity(apiKeyUsed, valid) {
+  const current = await chrome.storage.sync.get(['apiKey']);
+  if (keyFingerprint(current.apiKey) !== keyFingerprint(apiKeyUsed)) {
+    // The stored key changed since this request was issued - stale result.
+    return;
+  }
+  await chrome.storage.sync.set({
+    apiKeyValid: valid,
+    apiKeyValidFor: keyFingerprint(apiKeyUsed)
+  });
+}
+
+/**
  * Checks if the stored API key is valid.
  *
  * The W2G API has no side-effect-free way to validate a key (every
  * documented endpoint creates or modifies a room), so this never makes a
  * network request. Validity is only known once a real request has been
- * made (see handleSendToW2G): a successful room creation marks the key
- * valid, a 401/403 marks it invalid. Until a real request has happened,
- * the key is assumed valid so the user isn't blocked from trying.
+ * made (see handleSendToW2G / setApiKeyValidity): a successful room
+ * creation or playlist add marks the key valid, a 401 (or a 401/403 on
+ * room creation) marks it invalid. Until a real request has happened for
+ * the currently saved key, the key is assumed valid so the user isn't
+ * blocked from trying.
  *
  * @returns {Promise<Object>} Object with valid status and API key if exists
  */
 async function checkApiKeyValid() {
   try {
-    const config = await chrome.storage.sync.get(['apiKey', 'apiKeyValid']);
+    const config = await chrome.storage.sync.get(['apiKey', 'apiKeyValid', 'apiKeyValidFor']);
 
     if (!config.apiKey) {
       return { valid: false, hasApiKey: false };
     }
 
-    const valid = config.apiKeyValid !== false;
+    // Only trust the cached result if it was produced by this exact key.
+    const cacheAppliesToCurrentKey = config.apiKeyValidFor === keyFingerprint(config.apiKey);
+    const valid = cacheAppliesToCurrentKey ? config.apiKeyValid !== false : true;
+
     return {
       valid,
       hasApiKey: true,

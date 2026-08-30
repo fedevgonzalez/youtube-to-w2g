@@ -31,6 +31,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   autoCopyCheckbox.checked = settings.autoCopy !== undefined ? settings.autoCopy : true;
   quickJoinCheckbox.checked = settings.quickJoin !== undefined ? settings.quickJoin : false;
 
+  // If a previous real request already proved the saved key invalid,
+  // surface that here instead of staying silent (no network request -
+  // just reads the cache background.js keeps from real usage).
+  if (settings.apiKey) {
+    chrome.runtime.sendMessage({ action: 'checkApiKeyValid' }, (response) => {
+      if (chrome.runtime.lastError) {
+        return;
+      }
+      if (response && response.hasApiKey && !response.valid) {
+        showStatus('Your saved API key was rejected by W2G. Please check it and save again.', 'error');
+      }
+    });
+  }
+
   // Save toggle states immediately when changed
   autoSyncCheckbox.addEventListener('change', async () => {
     await chrome.storage.sync.set({ autoSync: autoSyncCheckbox.checked });
@@ -58,7 +72,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           apiKey: '',
           roomKey: roomKey
         });
-        await chrome.storage.sync.remove(['apiKeyValid']);
+        await chrome.storage.sync.remove(['apiKeyValid', 'apiKeyValidFor']);
 
         showStatus('Settings cleared successfully!', 'success');
 
@@ -84,7 +98,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         roomKey: roomKey
       });
       // Reset any cached validity from a previous key - it doesn't apply here.
-      await chrome.storage.sync.remove(['apiKeyValid']);
+      await chrome.storage.sync.remove(['apiKeyValid', 'apiKeyValidFor']);
 
       showStatus("Settings saved! We'll confirm your API key the next time you send a video.", 'success');
 
