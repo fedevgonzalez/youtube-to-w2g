@@ -137,11 +137,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .then(result => sendResponse(result))
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true; // Keep message channel open for async response
-  } else if (request.action === 'validateApiKey') {
-    validateApiKey(request.apiKey)
-      .then(result => sendResponse(result))
-      .catch(error => sendResponse({ success: false, error: error.message }));
-    return true;
   } else if (request.action === 'checkApiKeyValid') {
     checkApiKeyValid()
       .then(result => sendResponse(result))
@@ -255,17 +250,25 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
 
       if (!createResponse.ok) {
         const errorText = await createResponse.text();
+
+        if (createResponse.status === 401 || createResponse.status === 403) {
+          // Real request confirms the key itself is invalid - cache this
+          // so checkApiKeyValid can surface it without another API call.
+          await chrome.storage.sync.set({ apiKeyValid: false });
+          throw new Error('Invalid API key. Please check your API key in the extension settings.');
+        }
+
         throw new Error(`Failed to create room: ${createResponse.status} - ${errorText}`);
       }
 
       const roomData = await createResponse.json();
-      
+
       if (!roomData || !roomData.streamkey) {
         throw new Error('Invalid room creation response - missing streamkey');
       }
-      
+
       roomKey = roomData.streamkey;
-      
+
       // Extract additional room info from response
       const roomInfo = {
         roomKey: roomKey,
@@ -275,11 +278,13 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
         roomId: roomData.room_id || roomData.roomid || null,
         created: Date.now()
       };
-      
-      // Save the room information
-      await chrome.storage.sync.set({ 
+
+      // Room creation succeeded - this is a real, effectful confirmation
+      // that the API key is valid, so cache it alongside the room info.
+      await chrome.storage.sync.set({
         roomKey: roomKey,
-        roomInfo: roomInfo
+        roomInfo: roomInfo,
+        apiKeyValid: true
       });
       
       // Build room URL - always use short format with streamkey
@@ -411,87 +416,32 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
 }
 
 /**
- * Validates an API key by attempting to create a test room
- * 
- * @param {string} apiKey - The API key to validate
- * @returns {Promise<Object>} Result object with success status
- */
-async function validateApiKey(apiKey) {
-  try {
-    const createUrl = 'https://api.w2g.tv/rooms/create.json';
-    const createBody = {
-      w2g_api_key: apiKey,
-      share: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' // Test video
-    };
-    
-    const response = await fetch(createUrl, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(createBody)
-    });
-    
-    if (response.ok) {
-      const roomData = await response.json();
-      if (roomData && roomData.streamkey) {
-        // API key is valid - save validation state
-        await chrome.storage.sync.set({ 
-          apiKeyValid: true,
-          apiKeyLastValidated: Date.now()
-        });
-        return { success: true, valid: true };
-      }
-    } else if (response.status === 403 || response.status === 401) {
-      // Invalid API key
-      await chrome.storage.sync.set({ 
-        apiKeyValid: false,
-        apiKeyLastValidated: Date.now()
-      });
-      return { success: true, valid: false, error: 'Invalid API key' };
-    }
-    
-    // Other error
-    const errorText = await response.text();
-    return { success: false, valid: false, error: `Validation failed: ${response.status} - ${errorText}` };
-    
-  } catch (error) {
-    console.error('Error validating API key:', error);
-    return { success: false, valid: false, error: error.message };
-  }
-}
-
-/**
- * Checks if the stored API key is valid
- * 
+ * Checks if the stored API key is valid.
+ *
+ * The W2G API has no side-effect-free way to validate a key (every
+ * documented endpoint creates or modifies a room), so this never makes a
+ * network request. Validity is only known once a real request has been
+ * made (see handleSendToW2G): a successful room creation marks the key
+ * valid, a 401/403 marks it invalid. Until a real request has happened,
+ * the key is assumed valid so the user isn't blocked from trying.
+ *
  * @returns {Promise<Object>} Object with valid status and API key if exists
  */
 async function checkApiKeyValid() {
   try {
-    const config = await chrome.storage.sync.get(['apiKey', 'apiKeyValid', 'apiKeyLastValidated']);
-    
+    const config = await chrome.storage.sync.get(['apiKey', 'apiKeyValid']);
+
     if (!config.apiKey) {
       return { valid: false, hasApiKey: false };
     }
-    
-    // Check if we have a recent validation (within 24 hours)
-    if (config.apiKeyValid !== undefined && config.apiKeyLastValidated) {
-      const hoursSinceValidation = (Date.now() - config.apiKeyLastValidated) / (1000 * 60 * 60);
-      if (hoursSinceValidation < 24) {
-        return { valid: config.apiKeyValid, hasApiKey: true, cached: true };
-      }
-    }
-    
-    // Re-validate if needed
-    const validationResult = await validateApiKey(config.apiKey);
-    return { 
-      valid: validationResult.valid, 
-      hasApiKey: true, 
-      cached: false,
-      error: validationResult.error 
+
+    const valid = config.apiKeyValid !== false;
+    return {
+      valid,
+      hasApiKey: true,
+      error: valid ? undefined : 'Invalid API key'
     };
-    
+
   } catch (error) {
     console.error('Error checking API key validity:', error);
     return { valid: false, hasApiKey: false, error: error.message };
