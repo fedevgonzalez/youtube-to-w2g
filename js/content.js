@@ -259,8 +259,11 @@ async function handleSendToW2G(e) {
       }
 
       if (!response.valid) {
-        // No valid API key - open popup
-        showNotification('Please configure your W2G API key', 'error');
+        // No API key configured, or a previously invalid key - open popup
+        const invalidKeyMessage = response.hasApiKey
+          ? 'Your W2G API key is invalid. Please check it in the extension settings.'
+          : 'Please configure your W2G API key';
+        showNotification(invalidKeyMessage, 'error');
         isProcessing = false;
         w2gButton.classList.remove('processing');
 
@@ -694,8 +697,11 @@ function addButtonToThumbnail(thumbnailElement) {
         }
 
         if (!response.valid) {
-          // No valid API key - open popup
-          showNotification('Please configure your W2G API key', 'error');
+          // No API key configured, or a previously invalid key - open popup
+          const invalidKeyMessage = response.hasApiKey
+            ? 'Your W2G API key is invalid. Please check it in the extension settings.'
+            : 'Please configure your W2G API key';
+          showNotification(invalidKeyMessage, 'error');
           button.classList.remove('processing');
 
           // Try to open popup
@@ -813,8 +819,11 @@ function addButtonToThumbnail(thumbnailElement) {
           }
 
           if (!response.valid) {
-            // No valid API key - open popup
-            showNotification('Please configure your W2G API key', 'error');
+            // No API key configured, or a previously invalid key - open popup
+            const invalidKeyMessage = response.hasApiKey
+              ? 'Your W2G API key is invalid. Please check it in the extension settings.'
+              : 'Please configure your W2G API key';
+            showNotification(invalidKeyMessage, 'error');
             button.classList.remove('processing');
 
             // Try to open popup
@@ -946,8 +955,11 @@ function addButtonToThumbnail(thumbnailElement) {
       }
 
       if (!response.valid) {
-        // No valid API key - open popup
-        showNotification('Please configure your W2G API key', 'error');
+        // No API key configured, or a previously invalid key - open popup
+        const invalidKeyMessage = response.hasApiKey
+          ? 'Your W2G API key is invalid. Please check it in the extension settings.'
+          : 'Please configure your W2G API key';
+        showNotification(invalidKeyMessage, 'error');
         button.classList.remove('processing');
 
         // Try to open popup
@@ -1237,7 +1249,10 @@ function addButtonToEndscreenVideo(videoElement) {
       }
 
       if (!response.valid) {
-        showEmbedNotification('Please configure Y2W extension first', 'error');
+        const invalidKeyMessage = response.hasApiKey
+          ? 'Your W2G API key is invalid. Please check it in the extension settings.'
+          : 'Please configure Y2W extension first';
+        showEmbedNotification(invalidKeyMessage, 'error');
         button.classList.remove('processing');
         safeRuntimeSendMessage({ action: 'openPopup' }, () => {});
         return;
