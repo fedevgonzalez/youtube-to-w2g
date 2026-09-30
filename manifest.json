@@ -11,8 +11,19 @@
   "permissions": [
     "storage",
     "tabs",
-    "scripting"
+    "scripting",
+    "contextMenus"
   ],
+  "commands": {
+    "send-video": {
+      "suggested_key": { "default": "Alt+Shift+Y" },
+      "description": "Send the current YouTube video to Watch2Gether"
+    },
+    "queue-video": {
+      "suggested_key": { "default": "Alt+Shift+Q" },
+      "description": "Add the current YouTube video to the Y2W queue"
+    }
+  },
   "host_permissions": [
     "*://*.youtube.com/*",
     "https://w2g.tv/*",

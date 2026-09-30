@@ -61,6 +61,52 @@ input[type="password"]:focus {
   border-color: #4CAF50;
 }
 
+select {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.queue-section {
+  margin-top: 15px;
+}
+
+.queue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.queue-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+  color: #333;
+}
+
+.queue-list .queue-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-list .queue-remove {
+  flex: none;
+  padding: 0 6px;
+  background: none;
+  color: #777;
+  font-size: 16px;
+}
+
 .help-text {
   font-size: 12px;
   color: #777;
