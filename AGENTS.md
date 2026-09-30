@@ -29,6 +29,10 @@ youtube-to-w2g/
 │   ├── background.js  # Service worker for API communication
 │   ├── content.js     # Content script for YouTube integration
 │   └── popup.js       # Popup interface logic
+├── test/
+│   ├── smoke.mjs      # Loads the real extension on YouTube; fails if thumbnail buttons stop appearing
+│   └── api-e2e.mjs    # background.js e2e (offline fake fetch; W2G_KEY=... for the real API)
+├── package.json       # Only for the test tooling (playwright devDependency)
 ├── manifest.json      # Chrome extension manifest (V3)
 └── popup.html         # Extension popup UI
 ```
@@ -51,6 +55,14 @@ To load the extension in Chrome:
 2. Enable "Developer mode"
 3. Click "Load unpacked"
 4. Select the project root directory
+
+```bash
+npm install            # once, installs playwright for the tests
+npm run smoke          # needs network + a free Chromium (~1 GB RAM); never clicks, never calls the W2G API
+npm run api            # offline; W2G_KEY=<key> npm run api creates real temporary rooms
+```
+
+YouTube markup changes often. Thumbnail discovery in `js/content.js` is structural (links to /watch?v= or /shorts/ that wrap a thumbnail) rather than class-based; when buttons vanish, run the smoke test before touching selectors.
 
 ## Architecture
 
@@ -78,7 +90,7 @@ The extension follows Chrome Extension Manifest V3 architecture with three main 
 
 - **Extension Name**: Y2W - YouTube to Watch2Gether
 - **Storage**: Uses `chrome.storage.sync` for persisting API credentials
-- **Permissions**: Requires `storage`, `tabs`, and host permissions for `https://w2g.tv/*` and `https://api.w2g.tv/*`
+- **Permissions**: Requires `storage`, `tabs`, `scripting`, `contextMenus`, and host permissions for `https://w2g.tv/*` and `https://api.w2g.tv/*`
 - **Content Script Matching**: Runs on all YouTube URLs (`*://*.youtube.com/*`)
 - **Content Script CSS**: Injects `css/style.css` for button styling
 - **API Integration**: Requires W2G API key and room access key for authentication

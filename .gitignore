@@ -36,3 +36,7 @@ npm-debug.log*
 notes.txt
 TODO.txt
 .claude/settings.local.json
+
+# Local tooling
+.playwright-mcp/
+.impeccable/

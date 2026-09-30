@@ -40,6 +40,8 @@ YouTube to Watch2Gether (Y2W) is a Chrome extension that seamlessly integrates w
 - 🔄 **Feels Native**: The button looks like it belongs there (because it does)
 - 🎯 **Works Everywhere**: Theater mode? ✓ Fullscreen? ✓ Mobile view? ✓ We got you
 - 🔐 **Your Keys, Your Rules**: Everything stays in your browser's secure storage
+- 🧺 **Queue It Up**: Shift+click videos to queue them, send them all at once
+- 🖱️ **Right-Click & Hotkeys**: context menu on any video link, `Alt+Shift+Y` to send, `Alt+Shift+Q` to queue
 - ⚡ **Zero Bloat**: So lightweight you'll forget it's there (until you need it)
 
 ## 🚀 Installation
@@ -158,10 +160,10 @@ youtube-to-w2g/
 ## 🗺️ Roadmap
 
 - [ ] Firefox support
-- [ ] Multiple room support
+- [x] Multiple room support (recent rooms selector)
 - [ ] Playlist support
 - [ ] Custom button positioning
-- [ ] Keyboard shortcuts
+- [x] Keyboard shortcuts
 - [ ] Dark/light theme auto-detection
 - [ ] Localization (multiple languages)
 - [ ] Edge and Opera support

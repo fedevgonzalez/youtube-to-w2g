@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Thumbnail buttons disappeared** after YouTube renamed its classes to camelCase (`yt-lockup-view-model__content-image` -> `ytLockupViewModelContentImage`). Thumbnail discovery is now structural (any link to a video/short that wraps a thumbnail), so class renames no longer break it
+- Player-bar button is inserted after the new `.ytp-volume-area`
+- The video is resolved at click time, so recycled YouTube renderers no longer send a stale video
+- Video titles no longer include the duration appended by YouTube's aria-label
+
+### Added
+- **Shorts** thumbnails get the Y2W button
+- **Queue**: Shift+click a button (or use the context menu / shortcut) to queue videos, then send them all in one go from the popup. The toolbar badge shows the queue size
+- **Context menu**: right-click a YouTube video/short link or page -> Send to Watch2Gether / Add to Y2W queue
+- **Keyboard shortcuts**: `Alt+Shift+Y` sends the current video, `Alt+Shift+Q` queues it (rebind in `chrome://extensions/shortcuts`)
+- **Recent rooms**: popup selector to switch between the last 6 rooms
+- Smoke test (`npm run smoke`) that loads the real extension on YouTube and fails if buttons stop appearing, and an opt-in API e2e (`npm run api`)
+
+### Changed
+- Collapsed three copy-pasted click handlers into one (`js/content.js` is ~400 lines shorter)
+- New permission: `contextMenus`
+
 ## [1.2.0] - 2026-01-14
 
 ### Quick Join!
