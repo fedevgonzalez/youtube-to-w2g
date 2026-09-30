@@ -11,7 +11,7 @@
  */
 
 let w2gButton = null;
-let isProcessing = false;
+let sending = false; // one plain send in flight at a time (avoids two rooms being created)
 let thumbnailObserver = null;
 let endscreenObserver = null;
 let isEmbeddedPlayer = false;
@@ -223,104 +223,100 @@ function getVideoTitle() {
   return cleanedTitle;
 }
 
+// Sends (or, with queue=true, enqueues) a video. getVideo() is called at click
+// time and returns {videoUrl, videoTitle}. Shared by thumbnail and player-bar buttons.
+function sendVideo(button, getVideo, queue) {
+  if (button.classList.contains('processing')) return;
+  if (sending && !queue) return;
+  const { videoUrl, videoTitle } = getVideo();
+  if (!videoUrl) {
+    showNotification('Could not get video URL', 'error');
+    return;
+  }
+  const flash = (cls) => {
+    button.classList.add(cls);
+    setTimeout(() => button.classList.remove(cls), 2000);
+  };
+
+  if (queue) {
+    safeRuntimeSendMessage({ action: 'queueAdd', videoUrl, videoTitle }, (response) => {
+      if (response && response.success) {
+        showNotification(response.duplicate ? 'Already in queue' : `Added to queue (${response.count})`, 'info');
+        flash('queued');
+      } else {
+        showNotification(response?.error || 'Failed to add to queue', 'error');
+      }
+    });
+    return;
+  }
+
+  sending = true;
+  button.classList.add('processing');
+  let finished = false;
+  const done = () => {
+    if (finished) return; // the failsafe below must not release a newer send
+    finished = true;
+    sending = false;
+    button.classList.remove('processing');
+  };
+  setTimeout(done, 30000); // failsafe: a service worker that never answers must not lock every button
+
+  // First check if API key is valid
+  safeRuntimeSendMessage({ action: 'checkApiKeyValid' }, (response) => {
+    if (!response || (response.error && response.success === false)) {
+      console.error('[Y2W] Extension error:', response?.error);
+      showNotification('Extension error: ' + (response?.error || 'Unknown error'), 'error');
+      done();
+      return;
+    }
+
+    if (!response.valid) {
+      // No API key configured, or a previously invalid key - open popup
+      showNotification(response.hasApiKey
+        ? 'Your W2G API key is invalid. Please check it in the extension settings.'
+        : 'Please configure your W2G API key', 'error');
+      done();
+      safeRuntimeSendMessage({ action: 'openPopup' }, () => {});
+      return;
+    }
+
+    safeRuntimeSendMessage({ action: 'sendToW2G', videoUrl, videoTitle }, (response) => {
+      if (!response || (response.error && response.success === false)) {
+        showNotification('Extension error: ' + (response?.error || 'Unknown error'), 'error');
+      } else if (response.success) {
+        let message;
+        if (response.action === 'created_room') {
+          message = 'New W2G room created!';
+        } else if (response.action === 'added_to_playlist') {
+          message = response.tabFocused ? 'Video added to playlist!' : 'Video added to W2G playlist!';
+        } else {
+          message = 'Video added to W2G!';
+        }
+        showNotification(message, 'success', response.roomUrl);
+        flash('success');
+      } else {
+        showNotification(response.error || 'Failed to add video', 'error');
+      }
+      done();
+    });
+  });
+}
+
 // Function to create the Y2W button
 function createW2GButton() {
   const button = document.createElement('button');
   button.id = 'w2g-send-button';
   button.className = 'w2g-button';
   button.innerHTML = getW2GSvg();
-  button.title = 'Send this video to Watch2Gether';
-  
-  button.addEventListener('click', handleSendToW2G);
-  
+  button.title = 'Send to Watch2Gether (Shift+click: add to queue)';
+  button.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    sendVideo(button, () => ({ videoUrl: getCurrentVideoUrl(), videoTitle: getVideoTitle() }), e.shiftKey);
+  });
   return button;
 }
 
-// Function to handle sending video to W2G
-async function handleSendToW2G(e) {
-  e.preventDefault();
-  e.stopPropagation();
-  
-  if (isProcessing) return;
-  
-  isProcessing = true;
-  w2gButton.classList.add('processing');
-  
-  try {
-    // First check if API key is valid
-    safeRuntimeSendMessage({ action: 'checkApiKeyValid' }, (response) => {
-      // Check for wrapper errors (extension context invalid, etc.)
-      if (!response || (response.error && response.success === false)) {
-        console.error('[Y2W] Extension error:', response?.error);
-        showNotification('Extension error: ' + (response?.error || 'Unknown error'), 'error');
-        isProcessing = false;
-        w2gButton.classList.remove('processing');
-        return;
-      }
-
-      if (!response.valid) {
-        // No API key configured, or a previously invalid key - open popup
-        const invalidKeyMessage = response.hasApiKey
-          ? 'Your W2G API key is invalid. Please check it in the extension settings.'
-          : 'Please configure your W2G API key';
-        showNotification(invalidKeyMessage, 'error');
-        isProcessing = false;
-        w2gButton.classList.remove('processing');
-
-        // Try to open popup
-        safeRuntimeSendMessage({ action: 'openPopup' }, () => {
-          // Popup opened or failed silently
-        });
-        return;
-      }
-
-      // API key is valid, proceed with sending video
-      const videoUrl = getCurrentVideoUrl();
-      if (!videoUrl) {
-        showNotification('Could not get video URL', 'error');
-        isProcessing = false;
-        w2gButton.classList.remove('processing');
-        return;
-      }
-
-      safeRuntimeSendMessage({
-        action: 'sendToW2G',
-        videoUrl: videoUrl,
-        videoTitle: getVideoTitle()
-      }, (response) => {
-        // Check for wrapper errors
-        if (!response || (response.error && response.success === false)) {
-          showNotification('Extension error: ' + (response?.error || 'Unknown error'), 'error');
-        } else if (response && response.success) {
-          // Show different messages based on action type
-          let message;
-          if (response.action === 'created_room') {
-            message = 'New W2G room created!';
-          } else if (response.action === 'added_to_playlist') {
-            message = response.tabFocused ? 'Video added to playlist!' : 'Video added to W2G playlist!';
-          } else {
-            message = 'Video added to W2G!';
-          }
-          
-          showNotification(message, 'success', response.roomUrl);
-          w2gButton.classList.add('success');
-          setTimeout(() => {
-            w2gButton.classList.remove('success');
-          }, 2000);
-        } else {
-          showNotification(response?.error || 'Failed to add video', 'error');
-        }
-        isProcessing = false;
-        w2gButton.classList.remove('processing');
-      });
-    });
-    
-  } catch (error) {
-    showNotification('Error: ' + error.message, 'error');
-    isProcessing = false;
-    w2gButton.classList.remove('processing');
-  }
-}
 
 // Unified Notification Manager - handles all notifications with proper stacking
 const NotificationManager = {
@@ -584,6 +580,7 @@ function getVideoTitleFromContainer(container) {
     'span#video-title',
     // Less specific but still good
     'h3 a[aria-label]:not([href*="/channel/"]):not([href*="/@"])',
+    'a.ytLockupMetadataViewModelTitle[aria-label]',
     'a.yt-lockup-metadata-view-model__title[aria-label]',
     // Generic but filtered
     'a[aria-label]:not([href*="/channel/"]):not([href*="/@"])'
@@ -592,6 +589,10 @@ function getVideoTitleFromContainer(container) {
   for (const selector of titleSelectors) {
     const element = container.querySelector(selector);
     if (element && !isChannelElement(element)) {
+      // #video-title aria-labels append duration/views; its text is the bare title
+      const bare = element.id.startsWith('video-title') && element.textContent?.trim();
+      if (bare) return bare;
+
       // Get aria-label first (usually complete title)
       const ariaLabel = element.getAttribute('aria-label');
       if (ariaLabel && !ariaLabel.toLowerCase().includes('channel')) {
@@ -609,438 +610,67 @@ function getVideoTitleFromContainer(container) {
   return '';
 }
 
-// Function to extract video ID from various YouTube URL formats
-function extractVideoId(url) {
-  // Handle different YouTube URL formats
-  const patterns = [
-    /[?&]v=([^&]+)/,           // Regular watch URL
-    /youtu\.be\/([^?]+)/,      // Shortened URL
-    /embed\/([^?]+)/,          // Embed URL
-    /shorts\/([^?]+)/          // Shorts URL
-  ];
-  
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) return match[1];
-  }
-  
-  // Try to extract from data attributes if URL parsing fails
+// Structural thumbnail discovery: any /watch?v= or /shorts/ anchor that wraps
+// thumbnail media is a host, regardless of the (frequently renamed) YouTube classes.
+const THUMB_MEDIA = 'img, yt-image, yt-thumbnail-view-model';
+const THUMB_EXCLUDE = '#movie_player, .html5-video-player, [class*="ytp-"], ytd-masthead, ytd-guide-renderer, ytd-channel-renderer, ytd-comments, ytd-comment-view-model, ytd-comment-thread-renderer, ytd-ad-slot-renderer, ytd-in-feed-ad-layout-renderer, ytd-display-ad-renderer, ytd-promoted-video-renderer, ytd-banner-promo-renderer';
+// music.youtube.com and studio.youtube.com are also matched by the manifest but have no thumbnails to decorate
+const SKIP_THUMBNAILS = ['music.youtube.com', 'studio.youtube.com'].includes(location.hostname);
+const CARD_SELECTOR = 'yt-lockup-view-model, ytm-shorts-lockup-view-model, ytd-video-renderer, ytd-compact-video-renderer, ytd-rich-item-renderer, ytd-grid-video-renderer, ytd-playlist-video-renderer, ytd-playlist-panel-video-renderer, ytd-reel-item-renderer';
+
+// Video id of a /watch?v= or /shorts/ href, else null
+function videoIdFromHref(href) {
+  try {
+    const u = new URL(href, location.origin);
+    if (u.pathname === '/watch') return u.searchParams.get('v');
+    if (u.pathname.startsWith('/shorts/')) return u.pathname.split('/')[2] || null;
+  } catch (e) { /* invalid href */ }
   return null;
 }
 
+// Resolved at click time: YouTube recycles renderer elements on SPA navigation
+function resolveThumbVideo(host) {
+  const links = [host.closest('a[href]'), ...host.querySelectorAll('a[href]')].filter(Boolean);
+  const link = links.find(a => videoIdFromHref(a.href));
+  if (!link) return {};
+  const card = host.closest(CARD_SELECTOR) || host.parentElement || host;
+  const title = getVideoTitleFromContainer(card) ||
+    card.querySelector('h3')?.textContent.trim() ||
+    link.getAttribute('aria-label') || link.title || link.querySelector('img[alt]')?.alt || '';
+  return {
+    videoUrl: `https://www.youtube.com/watch?v=${videoIdFromHref(link.href)}`,
+    videoTitle: cleanVideoTitle(title)
+  };
+}
 
-// Function to add W2G button to video thumbnail
-function addButtonToThumbnail(thumbnailElement) {
-  // Handle ytd-playlist-panel-video-renderer structure (playlist videos)
-  if (thumbnailElement.tagName.toLowerCase() === 'ytd-playlist-panel-video-renderer') {
-    // Don't add button if already exists
-    if (thumbnailElement.querySelector('.w2g-thumbnail-button')) {
-      return;
-    }
+// Adds the Y2W button to a thumbnail host (the anchor wrapping the media)
+function addButtonToThumbnail(host) {
+  if (host.classList.contains('w2g-thumb-host')) return;
+  host.classList.add('w2g-thumb-host');
+  // Only static elements need a containing block; YouTube's own absolute/relative positioning must stay untouched
+  if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
 
-    // Find the link element with video URL
-    const linkElement = thumbnailElement.querySelector('a#wc-endpoint[href]');
-    if (!linkElement) {
-      return;
-    }
-
-    const videoUrl = linkElement.href;
-    const videoId = extractVideoId(videoUrl);
-    if (!videoId) {
-      return;
-    }
-
-    // Get video title from span#video-title
-    let videoTitle = '';
-    const titleElement = thumbnailElement.querySelector('span#video-title');
-    if (titleElement) {
-      videoTitle = titleElement.textContent.trim();
-    }
-
-    // Clean and validate title
-    videoTitle = cleanVideoTitle(videoTitle);
-
-    // Find the thumbnail container to position the button
-    const thumbnailContainer = thumbnailElement.querySelector('div#thumbnail-container');
-    if (!thumbnailContainer) {
-      return;
-    }
-
-    // Ensure container has position relative
-    if (!thumbnailContainer.style.position || thumbnailContainer.style.position === 'static') {
-      thumbnailContainer.style.position = 'relative';
-    }
-
-    // Create button
-    const button = document.createElement('button');
-    button.className = 'w2g-thumbnail-button youtube playlist-panel';
-    button.title = 'Send to Watch2Gether';
-    button.innerHTML = getW2GSvg();
-
-    // Add click handler
-    button.addEventListener('click', (e) => {
-      try {
-        e.preventDefault();
-        e.stopPropagation();
-
-        if (button.classList.contains('processing')) return;
-
-        button.classList.add('processing');
-
-        // First check if API key is valid
-        safeRuntimeSendMessage({ action: 'checkApiKeyValid' }, (response) => {
-        // Check for wrapper errors
-        if (!response || (response.error && response.success === false)) {
-          showNotification('Extension error: ' + (response?.error || 'Unknown error'), 'error');
-          button.classList.remove('processing');
-          return;
-        }
-
-        if (!response.valid) {
-          // No API key configured, or a previously invalid key - open popup
-          const invalidKeyMessage = response.hasApiKey
-            ? 'Your W2G API key is invalid. Please check it in the extension settings.'
-            : 'Please configure your W2G API key';
-          showNotification(invalidKeyMessage, 'error');
-          button.classList.remove('processing');
-
-          // Try to open popup
-          safeRuntimeSendMessage({ action: 'openPopup' }, () => {
-            // Popup opened or failed silently
-          });
-          return;
-        }
-
-        // API key is valid, proceed
-        const fullVideoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-
-        try {
-          safeRuntimeSendMessage({
-            action: 'sendToW2G',
-            videoUrl: fullVideoUrl,
-            videoTitle: videoTitle
-          }, (response) => {
-            button.classList.remove('processing');
-
-            // Check for wrapper errors
-            if (!response || (response.error && response.success === false)) {
-              showNotification('Extension error: ' + (response?.error || 'Unknown error'), 'error');
-            } else if (response && response.success) {
-              // Show different messages based on action type
-              let message;
-              if (response.action === 'created_room') {
-                message = 'New W2G room created!';
-              } else if (response.action === 'added_to_playlist') {
-                message = response.tabFocused ? 'Video added to playlist!' : 'Video added to W2G playlist!';
-              } else {
-                message = 'Video added to W2G!';
-              }
-
-              showNotification(message, 'success', response.roomUrl);
-              button.classList.add('success');
-              setTimeout(() => {
-                button.classList.remove('success');
-              }, 2000);
-            } else {
-              showNotification(response?.error || 'Failed to add video', 'error');
-            }
-          });
-        } catch (error) {
-          showNotification('Error: ' + error.message, 'error');
-          button.classList.remove('processing');
-        }
-      });
-      } catch (error) {
-        console.error('[Y2W] Error in click handler:', error);
-        button.classList.remove('processing');
-      }
-    });
-
-    // Append button to thumbnail container
-    thumbnailContainer.appendChild(button);
-
-    return;
-  }
-
-  // Handle new yt-lockup-view-model structure
-  if (thumbnailElement.tagName.toLowerCase() === 'yt-lockup-view-model') {
-    // Don't add button if already exists
-    if (thumbnailElement.querySelector('.w2g-thumbnail-button')) {
-      return;
-    }
-    
-    // Find the link element with video URL
-    const linkElement = thumbnailElement.querySelector('a.yt-lockup-view-model__content-image[href]');
-    if (!linkElement) {
-      return;
-    }
-    
-    const videoUrl = linkElement.href;
-    const videoId = extractVideoId(videoUrl);
-    if (!videoId) {
-      return;
-    }
-    
-    // Get video title using the new helper function
-    let videoTitle = getVideoTitleFromContainer(thumbnailElement);
-    
-    // Clean and validate title
-    videoTitle = cleanVideoTitle(videoTitle);
-    
-    // Create button
-    const button = document.createElement('button');
-    button.className = 'w2g-thumbnail-button youtube yt-lockup';
-    button.title = 'Send to Watch2Gether';
-    button.innerHTML = getW2GSvg();
-    
-    // Find the thumbnail container to position the button
-    const thumbnailContainer = thumbnailElement.querySelector('.yt-lockup-view-model__content-image');
-    if (thumbnailContainer) {
-      // Make the container relative for absolute positioning
-      thumbnailContainer.style.position = 'relative';
-      
-      // Add click handler
-      button.addEventListener('click', (e) => {
-        try {
-          e.preventDefault();
-          e.stopPropagation();
-
-          if (button.classList.contains('processing')) return;
-
-          button.classList.add('processing');
-
-          // First check if API key is valid
-          safeRuntimeSendMessage({ action: 'checkApiKeyValid' }, (response) => {
-          // Check for wrapper errors
-          if (!response || (response.error && response.success === false)) {
-            showNotification('Extension error: ' + (response?.error || 'Unknown error'), 'error');
-            button.classList.remove('processing');
-            return;
-          }
-
-          if (!response.valid) {
-            // No API key configured, or a previously invalid key - open popup
-            const invalidKeyMessage = response.hasApiKey
-              ? 'Your W2G API key is invalid. Please check it in the extension settings.'
-              : 'Please configure your W2G API key';
-            showNotification(invalidKeyMessage, 'error');
-            button.classList.remove('processing');
-
-            // Try to open popup
-            safeRuntimeSendMessage({ action: 'openPopup' }, () => {
-              // Popup opened or failed silently
-            });
-            return;
-          }
-
-          // API key is valid, proceed
-          const fullVideoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-
-          try {
-            safeRuntimeSendMessage({
-              action: 'sendToW2G',
-              videoUrl: fullVideoUrl,
-              videoTitle: videoTitle
-            }, (response) => {
-              button.classList.remove('processing');
-
-              // Check for wrapper errors
-              if (!response || (response.error && response.success === false)) {
-                showNotification('Extension error: ' + (response?.error || 'Unknown error'), 'error');
-              } else if (response && response.success) {
-                // Show different messages based on action type
-                let message;
-                if (response.action === 'created_room') {
-                  message = 'New W2G room created!';
-                } else if (response.action === 'added_to_playlist') {
-                  message = response.tabFocused ? 'Video added to playlist!' : 'Video added to W2G playlist!';
-                } else {
-                  message = 'Video added to W2G!';
-                }
-                
-                showNotification(message, 'success', response.roomUrl);
-                button.classList.add('success');
-                setTimeout(() => {
-                  button.classList.remove('success');
-                }, 2000);
-              } else {
-                showNotification(response?.error || 'Failed to add video', 'error');
-              }
-            });
-          } catch (error) {
-            showNotification('Error: ' + error.message, 'error');
-            button.classList.remove('processing');
-          }
-        });
-        } catch (error) {
-          console.error('[Y2W] Error in click handler:', error);
-          button.classList.remove('processing');
-        }
-      });
-      
-      // Append button to thumbnail container
-      thumbnailContainer.appendChild(button);
-    }
-    
-    return;
-  }
-  
-  // For ytd-thumbnail elements, we need to find the parent container
-  let containerElement = thumbnailElement;
-  if (thumbnailElement.tagName.toLowerCase() === 'ytd-thumbnail') {
-    // Find the parent video renderer container - trying multiple possibilities
-    containerElement = thumbnailElement.closest('ytd-compact-video-renderer, ytd-video-renderer, ytd-rich-item-renderer, ytd-grid-video-renderer, ytd-playlist-video-renderer');
-    if (!containerElement) {
-      // Try to find any parent with a video link
-      const parent = thumbnailElement.parentElement;
-      if (parent && parent.querySelector('a[href*="watch?v="]')) {
-        containerElement = parent;
-      } else {
-        return;
-      }
-    }
-  }
-  
-  // Don't add button if already exists
-  if (containerElement.querySelector('.w2g-thumbnail-button')) {
-    return;
-  }
-  
-  // Find the link element that contains the video URL
-  const linkElement = containerElement.querySelector('a[href*="watch?v="], a[href*="shorts/"]');
-  if (!linkElement) {
-    return;
-  }
-  
-  const videoUrl = linkElement.href;
-  const videoId = extractVideoId(videoUrl);
-  if (!videoId) {
-    return;
-  }
-  
-  // Get video title using the helper function
-  let videoTitle = getVideoTitleFromContainer(containerElement);
-
-  // Clean and validate title
-  videoTitle = cleanVideoTitle(videoTitle);
-  
-  // Create button
   const button = document.createElement('button');
   button.className = 'w2g-thumbnail-button youtube';
-  button.title = 'Send to Watch2Gether';
+  button.title = 'Send to Watch2Gether (Shift+click: add to queue)';
+  button.setAttribute('aria-label', 'Send to Watch2Gether');
   button.innerHTML = getW2GSvg();
-  
-  // Make video container relative for absolute positioning
-  if (containerElement.style.position !== 'relative') {
-    containerElement.style.position = 'relative';
-  }
-  
-  // Add click handler
   button.addEventListener('click', (e) => {
-    try {
-      e.preventDefault();
-      e.stopPropagation();
-
-      if (button.classList.contains('processing')) return;
-
-      button.classList.add('processing');
-
-      // First check if API key is valid
-      safeRuntimeSendMessage({ action: 'checkApiKeyValid' }, (response) => {
-      // Check for wrapper errors
-      if (!response || (response.error && response.success === false)) {
-        showNotification('Extension error: ' + (response?.error || 'Unknown error'), 'error');
-        button.classList.remove('processing');
-        return;
-      }
-
-      if (!response.valid) {
-        // No API key configured, or a previously invalid key - open popup
-        const invalidKeyMessage = response.hasApiKey
-          ? 'Your W2G API key is invalid. Please check it in the extension settings.'
-          : 'Please configure your W2G API key';
-        showNotification(invalidKeyMessage, 'error');
-        button.classList.remove('processing');
-
-        // Try to open popup
-        safeRuntimeSendMessage({ action: 'openPopup' }, () => {
-          // Popup opened or failed silently
-        });
-        return;
-      }
-
-      // API key is valid, proceed
-      const fullVideoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-
-      try {
-        safeRuntimeSendMessage({
-          action: 'sendToW2G',
-          videoUrl: fullVideoUrl,
-          videoTitle: videoTitle
-        }, (response) => {
-          button.classList.remove('processing');
-
-          // Check for wrapper errors
-          if (!response || (response.error && response.success === false)) {
-            showNotification('Extension error: ' + (response?.error || 'Unknown error'), 'error');
-          } else if (response && response.success) {
-            // Show different messages based on action type
-            let message;
-            if (response.action === 'created_room') {
-              message = 'New W2G room created!';
-            } else if (response.action === 'added_to_playlist') {
-              message = response.tabFocused ? 'Video added to playlist!' : 'Video added to W2G playlist!';
-            } else {
-              message = 'Video added to W2G!';
-            }
-            
-            showNotification(message, 'success', response.roomUrl);
-            button.classList.add('success');
-            setTimeout(() => {
-              button.classList.remove('success');
-            }, 2000);
-          } else {
-            showNotification(response?.error || 'Failed to add video', 'error');
-          }
-        });
-      } catch (error) {
-        showNotification('Error: ' + error.message, 'error');
-        button.classList.remove('processing');
-      }
-    });
-    } catch (error) {
-      console.error('[Y2W] Error in click handler:', error);
-      button.classList.remove('processing');
-    }
+    e.preventDefault();
+    e.stopPropagation();
+    sendVideo(button, () => resolveThumbVideo(host), e.shiftKey);
   });
-  
-  // Append button to video element
-  containerElement.appendChild(button);
+  host.appendChild(button);
 }
 
 // Function to process all video thumbnails on the page
 function processVideoThumbnails() {
-  // Selectors for different types of video containers on YouTube
-  const selectors = [
-    'ytd-video-renderer',              // Search results, home page, recommendations
-    'ytd-compact-video-renderer',      // Sidebar recommendations
-    'ytd-grid-video-renderer',         // Grid layout
-    'ytd-rich-item-renderer',          // Home page rich grid
-    'ytm-video-card-renderer',         // Mobile web
-    'ytm-compact-video-renderer',      // Mobile web compact
-    'ytd-reel-item-renderer',          // Shorts
-    'ytd-thumbnail',                   // Video thumbnails in watch page sidebar
-    'yt-lockup-view-model',            // New YouTube structure for recommendations
-    'yt-lockup-view-model.ytd-item-section-renderer',  // Videos in recommendation sections with ytd-item-section-renderer class
-    'ytd-item-section-renderer ytd-video-renderer',  // Videos in item sections (recommendations below video)
-    'ytd-item-section-renderer ytd-compact-video-renderer',  // Compact videos in item sections
-    'ytd-playlist-panel-video-renderer'  // Playlist panel videos
-  ];
-
-  const videoElements = document.querySelectorAll(selectors.join(', '));
-
-  videoElements.forEach(element => {
-    addButtonToThumbnail(element);
+  if (SKIP_THUMBNAILS) return;
+  document.querySelectorAll('a[href*="/watch"], a[href*="/shorts/"]').forEach(a => {
+    if (a.classList.contains('w2g-thumb-host') || !videoIdFromHref(a.href)) return;
+    // innermost anchor only (playlist rows wrap the thumbnail anchor in another one)
+    if (!a.querySelector(THUMB_MEDIA) || a.querySelector('a[href]') || a.closest(THUMB_EXCLUDE)) return;
+    addButtonToThumbnail(a);
   });
 }
 
@@ -1063,7 +693,7 @@ function injectButton() {
   w2gButton = createW2GButton();
   
   // Find the volume panel to insert after it
-  const volumePanel = playerControls.querySelector('.ytp-volume-panel');
+  const volumePanel = playerControls.querySelector('.ytp-volume-area, .ytp-volume-panel');
   if (volumePanel && volumePanel.nextSibling) {
     playerControls.insertBefore(w2gButton, volumePanel.nextSibling);
   } else {
@@ -1548,35 +1178,18 @@ function setupThumbnailObserver() {
 
   // Create observer for dynamically loaded thumbnails
   thumbnailObserver = new MutationObserver((mutations) => {
-    // Check if any mutation involves playlist panel
-    let hasPlaylistPanel = false;
-    for (const mutation of mutations) {
-      for (const node of mutation.addedNodes) {
-        if (node.nodeType === 1) { // Element node
-          if (node.tagName === 'YTD-PLAYLIST-PANEL-VIDEO-RENDERER' ||
-              node.querySelector && node.querySelector('ytd-playlist-panel-video-renderer')) {
-            hasPlaylistPanel = true;
-            break;
-          }
-        }
-      }
-      if (hasPlaylistPanel) break;
-    }
-
+    // Ignore churn inside the player (captions, ads) and our own nodes
+    const relevant = mutations.some(m => {
+      const el = m.target.nodeType === 1 ? m.target : m.target.parentElement;
+      return el && !el.closest('#movie_player, .html5-video-player, [class*="w2g-"]');
+    });
+    if (!relevant) return;
     // Debounce processing to avoid excessive calls
     clearTimeout(thumbnailObserver.timeout);
-    thumbnailObserver.timeout = setTimeout(() => {
-      processVideoThumbnails();
-
-      // If playlist panel detected, retry after a delay to catch late-loading elements
-      if (hasPlaylistPanel) {
-        setTimeout(() => {
-          const playlistItems = document.querySelectorAll('ytd-playlist-panel-video-renderer');
-          playlistItems.forEach(item => addButtonToThumbnail(item));
-        }, 500);
-      }
-    }, 300);
+    thumbnailObserver.timeout = setTimeout(processVideoThumbnails, 300);
   });
+
+  if (SKIP_THUMBNAILS) return;
 
   // Start observing
   const targetNode = document.querySelector('#content, #page-manager, body');
