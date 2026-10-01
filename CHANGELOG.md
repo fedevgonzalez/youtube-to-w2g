@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-01
+
 ### Fixed
 - **Thumbnail buttons disappeared** after YouTube renamed its classes to camelCase (`yt-lockup-view-model__content-image` -> `ytLockupViewModelContentImage`). Thumbnail discovery is now structural (any link to a video/short that wraps a thumbnail), so class renames no longer break it
 - Player-bar button is inserted after the new `.ytp-volume-area`
