@@ -137,6 +137,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .then(result => sendResponse(result))
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true; // Keep message channel open for async response
+  } else if (request.action === 'queueAdd') {
+    queueAdd(request.videoUrl, request.videoTitle)
+      .then(result => sendResponse(result))
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true;
+  } else if (request.action === 'queueRemove') {
+    queueRemove(request.videoUrl)
+      .then(result => sendResponse(result))
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true;
+  } else if (request.action === 'queueClear') {
+    queueClear()
+      .then(result => sendResponse(result))
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true;
+  } else if (request.action === 'queueSend') {
+    queueSend()
+      .then(result => sendResponse(result))
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true;
   } else if (request.action === 'checkApiKeyValid') {
     checkApiKeyValid()
       .then(result => sendResponse(result))
@@ -209,34 +229,76 @@ async function handleStreamkeyFound(streamkey, accessKey, source) {
   }
 }
 
+/** Sends a single video; thin wrapper kept for the content script message. */
+function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
+  return sendItems([{ url: videoUrl, title: videoTitle }], tabId);
+}
+
 /**
- * Sends a video to Watch2Gether room via API
- * 
- * This function handles both creating new rooms and adding videos to existing rooms.
- * It manages the complete API flow including authentication, error handling, and retries.
- * 
- * @param {string} videoUrl - The YouTube video URL to send
- * @param {string} videoTitle - The title of the video
- * @returns {Promise<Object>} Result object with success status and room URL/error message
- * @throws {Error} If API key is missing or API requests fail
+ * POSTs items to a room's playlist (sync_update add_items).
+ *
+ * @returns {Promise<Response>}
  */
-async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
+function addItemsToRoom(apiKey, roomKey, items) {
+  return fetch(`https://api.w2g.tv/rooms/${roomKey}/playlists/current/playlist_items/sync_update`, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      w2g_api_key: apiKey,
+      add_items: items.map(i => ({ url: i.url, title: i.title }))
+    })
+  });
+}
+
+/** Copies the room URL if auto-copy is enabled (notifies once per tab). */
+async function autoCopyRoomUrl(w2gUrl, tabId) {
+  const autoCopySettings = await chrome.storage.sync.get(['autoCopy']);
+  if (autoCopySettings.autoCopy !== false) {
+    try {
+      await copyToClipboard(w2gUrl);
+      // Only notify once per tab
+      if (tabId) {
+        await notifyAutoCopyIfNeeded(w2gUrl, tabId);
+      }
+    } catch (copyError) {
+      console.error('Auto-copy error:', copyError);
+    }
+  }
+}
+
+/**
+ * Sends one or more videos to Watch2Gether via API
+ *
+ * Creates a new room (first item is the room's initial video, the rest are
+ * added to it) or adds all items to the existing room in a single request.
+ * Handles authentication, error handling, and the 403 -> new room fallback.
+ *
+ * @param {Array<{url: string, title: string}>} items - Videos to send
+ * @param {number|null} tabId - Tab used for one-time auto-copy notification
+ * @returns {Promise<Object>} Result object with success status, count, `sent`
+ *   (items delivered, in order - also on errors) and room URL/error message
+ */
+async function sendItems(items, tabId = null) {
+  let sent = 0;
   try {
     // Get configuration from storage
     const config = await chrome.storage.sync.get(['apiKey', 'roomKey', 'createNewRoom']);
-    
+
     if (!config.apiKey) {
       throw new Error('Please configure your W2G API key in the extension popup.');
     }
-    
+
     let roomKey = config.roomKey;
-    
+
     // If createNewRoom is enabled or no room key, create a new room
     if (config.createNewRoom || !roomKey) {
       const createUrl = 'https://api.w2g.tv/rooms/create.json';
       const createBody = {
         w2g_api_key: config.apiKey,
-        share: videoUrl
+        share: items[0].url
       };
 
       const createResponse = await fetch(createUrl, {
@@ -288,59 +350,48 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
       // Room creation succeeded - this is a real, effectful confirmation
       // that the API key is valid, so cache it.
       await setApiKeyValidity(config.apiKey, true);
-      
+
+      sent = 1;
+
       // Build room URL - always use short format with streamkey
       const w2gUrl = `https://w2g.tv/?r=${roomKey}`;
 
       // Open the new room
       await chrome.tabs.create({ url: w2gUrl });
 
-      // Check if auto-copy is enabled and copy room URL
-      const autoCopySettings = await chrome.storage.sync.get(['autoCopy']);
-      if (autoCopySettings.autoCopy !== false) {
-        try {
-          await copyToClipboard(w2gUrl);
-          // Only notify once per tab
-          if (tabId) {
-            await notifyAutoCopyIfNeeded(w2gUrl, tabId);
-          }
-        } catch (copyError) {
-          console.error('Auto-copy error:', copyError);
+      await autoCopyRoomUrl(w2gUrl, tabId);
+
+      // Remaining items go into the freshly created room
+      if (items.length > 1) {
+        const restResponse = await addItemsToRoom(config.apiKey, roomKey, items.slice(1));
+        if (!restResponse.ok) {
+          const errorText = await restResponse.text();
+          console.error('API Error Response:', restResponse.status, errorText);
+          return {
+            success: false,
+            error: `Room created with 1 of ${items.length} videos; ${items.length - 1} remain queued`,
+            sent: 1,
+            roomKey: roomKey,
+            roomUrl: w2gUrl
+          };
         }
       }
 
       return {
         success: true,
-        message: 'Created new W2G room with video!',
+        message: items.length > 1 ? `Created new W2G room with ${items.length} videos!` : 'Created new W2G room with video!',
         action: 'created_room',
         roomUrl: w2gUrl,
         roomKey: roomKey,
+        count: items.length,
+        sent: items.length,
         accessKey: roomInfo.accessKey
       };
-      
-    } else {
-      // Add video to existing room's playlist
-      const apiUrl = `https://api.w2g.tv/rooms/${roomKey}/playlists/current/playlist_items/sync_update`;
-      
-      const requestBody = {
-        w2g_api_key: config.apiKey,
-        add_items: [
-          {
-            url: videoUrl,
-            title: videoTitle
-          }
-        ]
-      };
 
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
-      
+    } else {
+      // Add videos to existing room's playlist
+      const response = await addItemsToRoom(config.apiKey, roomKey, items);
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('API Error Response:', response.status, errorText);
@@ -357,31 +408,22 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
           // Show notification explaining what happened
           await showNotification('Room access denied. Creating new room...', 'info');
 
-          // Clear the invalid room key and room info
-          await chrome.storage.sync.set({
-            roomKey: '',
-            roomInfo: null
-          });
+          // Clear the invalid room key and room info - but only if it is still
+          // the room that answered 403 (the user may have switched rooms meanwhile)
+          const current = await chrome.storage.sync.get(['roomKey']);
+          if (current.roomKey === roomKey) {
+            await chrome.storage.sync.set({
+              roomKey: '',
+              roomInfo: null
+            });
+          }
 
-          // Create new room with the video
-          return handleSendToW2G(videoUrl, videoTitle, tabId);
+          // Create new room with the videos
+          return sendItems(items, tabId);
         }
         throw new Error(`W2G API error: ${response.status} - ${errorText}`);
       }
-      
-      // Handle response - it might be empty or not JSON
-      let result = null;
-      const contentType = response.headers.get('content-type');
-      const contentLength = response.headers.get('content-length');
-      
-      if (contentType && contentType.includes('application/json') && contentLength !== '0') {
-        try {
-          result = await response.json();
-        } catch (jsonError) {
-          // Response is not valid JSON, but request was successful
-        }
-      }
-      
+
       // Build room URL - always use short format with streamkey
       const w2gUrl = `https://w2g.tv/?r=${roomKey}`;
 
@@ -394,35 +436,244 @@ async function handleSendToW2G(videoUrl, videoTitle, tabId = null) {
       //   await chrome.tabs.update(w2gTab.id, { active: true });
       // }
 
-      // Check if auto-copy is enabled and copy room URL
-      const autoCopySettings = await chrome.storage.sync.get(['autoCopy']);
-      if (autoCopySettings.autoCopy !== false) {
-        try {
-          await copyToClipboard(w2gUrl);
-          // Only notify once per tab
-          if (tabId) {
-            await notifyAutoCopyIfNeeded(w2gUrl, tabId);
-          }
-        } catch (copyError) {
-          console.error('Auto-copy error:', copyError);
-        }
-      }
+      await autoCopyRoomUrl(w2gUrl, tabId);
 
       return {
         success: true,
-        message: 'Video added to W2G playlist!',
+        message: items.length > 1 ? `${items.length} videos added to W2G playlist!` : 'Video added to W2G playlist!',
         action: 'added_to_playlist',
         roomUrl: w2gUrl,
         roomKey: roomKey,
+        count: items.length,
+        sent: items.length,
         tabFocused: !!w2gTab
       };
     }
-    
+
   } catch (error) {
     console.error('Error sending to W2G:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: error.message, sent };
   }
 }
+
+/**
+ * Normalizes any YouTube video URL (watch?v=, /shorts/, youtu.be/, /embed/)
+ * to https://www.youtube.com/watch?v=ID. Returns null if it isn't one.
+ */
+function canonicalVideoUrl(raw) {
+  try {
+    const u = new URL(raw);
+    let id = null;
+    if (u.hostname === 'youtu.be') {
+      id = u.pathname.split('/')[1];
+    } else if (/(^|\.)youtube\.com$/.test(u.hostname)) {
+      const m = u.pathname.match(/^\/(?:shorts|embed)\/([^/]+)/);
+      id = m ? m[1] : (u.pathname === '/watch' ? u.searchParams.get('v') : null);
+    }
+    return id && /^[\w-]{11}$/.test(id) ? `https://www.youtube.com/watch?v=${id}` : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+const QUEUE_MAX = 50;
+
+// Serializes read-modify-write cycles (queue, recentRooms) so they never
+// interleave; the callback must re-read its data inside the lock.
+let chain = Promise.resolve();
+function serial(fn) {
+  const p = chain.then(fn);
+  chain = p.catch(() => {});
+  return p;
+}
+
+async function getQueue() {
+  const { queue } = await chrome.storage.local.get(['queue']);
+  return Array.isArray(queue) ? queue : [];
+}
+
+function queueAdd(videoUrl, videoTitle) {
+  const url = canonicalVideoUrl(videoUrl);
+  if (!url) {
+    return Promise.resolve({ success: false, error: 'Not a YouTube video URL' });
+  }
+  return serial(async () => {
+    const queue = await getQueue();
+    if (queue.some(i => i.url === url)) {
+      return { success: true, count: queue.length, duplicate: true };
+    }
+    if (queue.length >= QUEUE_MAX) {
+      return { success: false, error: `Queue is full (${QUEUE_MAX} videos)` };
+    }
+    queue.push({ url, title: videoTitle || '', added: Date.now() });
+    await chrome.storage.local.set({ queue });
+    return { success: true, count: queue.length, duplicate: false };
+  });
+}
+
+function queueRemove(videoUrl) {
+  const url = canonicalVideoUrl(videoUrl) || videoUrl;
+  return serial(async () => {
+    const queue = (await getQueue()).filter(i => i.url !== url);
+    await chrome.storage.local.set({ queue });
+    return { success: true, count: queue.length };
+  });
+}
+
+function queueClear() {
+  return serial(async () => {
+    await chrome.storage.local.set({ queue: [] });
+    return { success: true, count: 0 };
+  });
+}
+
+let sendingQueue = false;
+
+// Sends the whole queue and removes exactly the delivered items: all of them
+// on success, only the delivered prefix on a partial failure, none otherwise.
+// A retry after a partial failure goes to the saved room, or, with createNewRoom
+// on, to a new room for only the remaining items (each send creates a room).
+async function queueSend() {
+  if (sendingQueue) {
+    return { success: false, error: 'A send is already in progress' };
+  }
+  sendingQueue = true;
+  try {
+    const snapshot = await getQueue();
+    if (snapshot.length === 0) {
+      return { success: false, error: 'Queue is empty' };
+    }
+    const result = await sendItems(snapshot.map(i => ({ url: i.url, title: i.title })));
+    if (result.sent > 0) {
+      const delivered = new Set(snapshot.slice(0, result.sent).map(i => i.url));
+      await serial(async () => {
+        await chrome.storage.local.set({ queue: (await getQueue()).filter(i => !delivered.has(i.url)) });
+      });
+    }
+    return result;
+  } finally {
+    sendingQueue = false;
+  }
+}
+
+// While a result flash is showing, queue-count updates wait for the timer
+let flashTimer = null;
+let badgeGen = 0; // bumped on every badge write so a stale async restore can be dropped
+
+function updateBadge(count) {
+  if (flashTimer) return;
+  badgeGen++;
+  chrome.action.setBadgeText({ text: count ? String(count) : '' });
+  chrome.action.setBadgeBackgroundColor({ color: '#4CAF50' });
+}
+
+// Briefly shows the outcome on the toolbar icon (works on any site), then
+// restores the queue count.
+function flashBadge(ok) {
+  clearTimeout(flashTimer);
+  badgeGen++;
+  chrome.action.setBadgeText({ text: ok ? '✓' : '!' });
+  chrome.action.setBadgeBackgroundColor({ color: ok ? '#4CAF50' : '#D93025' });
+  flashTimer = setTimeout(() => {
+    flashTimer = null;
+    refreshBadge();
+  }, 2500);
+}
+
+// Shows the stored queue count, unless a newer badge write happened while reading
+function refreshBadge() {
+  const gen = badgeGen;
+  return getQueue().then(q => { if (gen === badgeGen) updateBadge(q.length); }).catch(() => {});
+}
+
+// Restore badge whenever the service worker starts
+refreshBadge();
+
+chrome.storage.onChanged.addListener(async (changes, area) => {
+  try {
+    if (area === 'local' && changes.queue) {
+      updateBadge((changes.queue.newValue || []).length);
+    } else if (area === 'sync' && changes.roomKey && changes.roomKey.newValue) {
+      // Keep the most recent rooms (max 6, deduped) whatever path changed roomKey
+      const key = changes.roomKey.newValue;
+      await serial(async () => {
+        const { recentRooms } = await chrome.storage.sync.get(['recentRooms']);
+        const list = [key, ...(recentRooms || []).filter(k => k !== key)].slice(0, 6);
+        await chrome.storage.sync.set({ recentRooms: list });
+      });
+    }
+  } catch (error) {
+    console.error('storage.onChanged error:', error);
+  }
+});
+
+const VIDEO_PATTERNS = ['*://*.youtube.com/watch*', '*://*.youtube.com/shorts/*', '*://*.youtube.com/embed/*', '*://youtu.be/*'];
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.removeAll(() => {
+    const items = [['send', 'Send to Watch2Gether'], ['queue', 'Add to Y2W queue']];
+    for (const [kind, title] of items) {
+      chrome.contextMenus.create({
+        id: `${kind}-link`, title, contexts: ['link'], targetUrlPatterns: VIDEO_PATTERNS
+      });
+      chrome.contextMenus.create({
+        id: `${kind}-page`, title, contexts: ['page', 'video'], documentUrlPatterns: VIDEO_PATTERNS
+      });
+    }
+  });
+});
+
+/**
+ * Sends or queues a video from a context menu / shortcut and reports the
+ * outcome through the in-page notification and a toolbar badge flash (the
+ * latter also works on non-YouTube sites, where link items can be used).
+ */
+async function actOnVideo(send, rawUrl, title, tabId) {
+  const url = canonicalVideoUrl(rawUrl);
+  if (!url) {
+    await showNotification('Open a video first', 'info');
+    flashBadge(false);
+    return;
+  }
+  if (send) {
+    const r = await sendItems([{ url, title }], tabId);
+    flashBadge(r.success);
+    await showNotification(r.success ? r.message : r.error, r.success ? 'success' : 'error', r.success ? r.roomUrl : null);
+  } else {
+    const r = await queueAdd(url, title);
+    flashBadge(r.success);
+    await showNotification(
+      r.success ? (r.duplicate ? 'Already in the Y2W queue' : `Added to Y2W queue (${r.count})`) : r.error,
+      r.success ? 'success' : 'error'
+    );
+  }
+}
+
+const pageTitle = (tab) => ((tab && tab.title) || '').replace(/ - YouTube$/, '');
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  const isLink = info.menuItemId.endsWith('-link');
+  actOnVideo(
+    info.menuItemId.startsWith('send'),
+    isLink ? info.linkUrl : info.pageUrl,
+    isLink ? '' : pageTitle(tab),
+    tab && tab.id
+  ).catch(error => console.error('Context menu error:', error));
+});
+
+chrome.commands.onCommand.addListener(async (command, tab) => {
+  try {
+    if (!tab || !tab.url) {
+      [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    }
+    if (!tab || !/^https?:\/\/([^/]*\.)?(youtube\.com|youtu\.be)\//.test(tab.url || '')) {
+      return; // Not a YouTube tab - nothing to do
+    }
+    await actOnVideo(command === 'send-video', tab.url, pageTitle(tab), tab.id);
+  } catch (error) {
+    console.error('Command error:', error);
+  }
+});
 
 /**
  * Short fingerprint identifying which API key a cached validity result

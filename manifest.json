@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Y2W - YouTube to Watch2Gether",
-  "version": "1.2.0",
-  "version_name": "1.2.0",
-  "description": "Quickly send YouTube videos to your Watch2Gether room",
+  "version": "1.3.0",
+  "version_name": "1.3.0",
+  "description": "Send YouTube videos and Shorts to your Watch2Gether room in one click. Queue several, then send them all at once.",
   "author": "Federico Gonzalez",
   "short_name": "Y2W",
   "homepage_url": "https://github.com/fedevgonzalez/youtube-to-w2g",
@@ -11,8 +11,19 @@
   "permissions": [
     "storage",
     "tabs",
-    "scripting"
+    "scripting",
+    "contextMenus"
   ],
+  "commands": {
+    "send-video": {
+      "suggested_key": { "default": "Alt+Shift+Y" },
+      "description": "Send the current YouTube video to Watch2Gether"
+    },
+    "queue-video": {
+      "suggested_key": { "default": "Alt+Shift+Q" },
+      "description": "Add the current YouTube video to the Y2W queue"
+    }
+  },
   "host_permissions": [
     "*://*.youtube.com/*",
     "https://w2g.tv/*",

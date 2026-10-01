@@ -45,6 +45,94 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Queue: background owns the state (chrome.storage.local 'queue'); the popup
+  // renders it, sends commands as messages and live-updates via storage.onChanged.
+  const queueSection = document.getElementById('queueSection');
+  const queueList = document.getElementById('queueList');
+
+  function renderQueue(queue) {
+    queue = queue || [];
+    queueSection.hidden = queue.length === 0;
+    queueList.textContent = '';
+    for (const item of queue) {
+      const li = document.createElement('li');
+      const title = document.createElement('span');
+      title.className = 'queue-title';
+      title.textContent = item.title || new URL(item.url).searchParams.get('v');
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'queue-remove';
+      remove.textContent = '×';
+      remove.title = 'Remove';
+      remove.addEventListener('click', () => {
+        chrome.runtime.sendMessage({ action: 'queueRemove', videoUrl: item.url });
+      });
+      li.append(title, remove);
+      queueList.append(li);
+    }
+  }
+
+  renderQueue((await chrome.storage.local.get(['queue'])).queue);
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.queue) {
+      renderQueue(changes.queue.newValue);
+    }
+  });
+
+  const queueSendBtn = document.getElementById('queueSend');
+  const queueClearBtn = document.getElementById('queueClear');
+
+  queueSendBtn.addEventListener('click', () => {
+    showStatus('Sending queue...', 'info');
+    queueSendBtn.disabled = queueClearBtn.disabled = true;
+    try {
+      chrome.runtime.sendMessage({ action: 'queueSend' }, (response) => {
+        queueSendBtn.disabled = queueClearBtn.disabled = false;
+        if (chrome.runtime.lastError || !response) {
+          showStatus('Could not send the queue. Please try again.', 'error');
+        } else {
+          showStatus(response.success ? response.message : response.error, response.success ? 'success' : 'error');
+        }
+      });
+    } catch (error) {
+      // e.g. extension context invalidated: sendMessage throws synchronously
+      queueSendBtn.disabled = queueClearBtn.disabled = false;
+      showStatus('Could not send the queue. Please try again.', 'error');
+    }
+  });
+
+  queueClearBtn.addEventListener('click', () => {
+    try {
+      chrome.runtime.sendMessage({ action: 'queueClear' });
+    } catch (error) {
+      showStatus('Could not clear the queue. Please reopen the popup.', 'error');
+    }
+  });
+
+  // Recent rooms (kept by background.js): switch the active room key
+  const recentRooms = document.getElementById('recentRooms');
+  const recent = (await chrome.storage.sync.get(['recentRooms'])).recentRooms || [];
+  if (recent.length >= 2) {
+    for (const key of recent) {
+      recentRooms.add(new Option(key, key));
+    }
+    recentRooms.value = settings.roomKey || '';
+    if (recentRooms.value !== settings.roomKey) {
+      recentRooms.selectedIndex = -1;
+    }
+    recentRooms.hidden = false;
+  }
+  recentRooms.addEventListener('change', async () => {
+    roomKeyInput.value = recentRooms.value;
+    await chrome.storage.sync.set({ roomKey: recentRooms.value });
+    showStatus(`Room switched to ${recentRooms.value}`, 'success');
+  });
+
+  document.getElementById('shortcutsLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+  });
+
   // Save toggle states immediately when changed
   autoSyncCheckbox.addEventListener('change', async () => {
     await chrome.storage.sync.set({ autoSync: autoSyncCheckbox.checked });

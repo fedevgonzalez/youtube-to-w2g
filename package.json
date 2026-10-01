@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "smoke": "node test/smoke.mjs",
+    "api": "node test/api-e2e.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}

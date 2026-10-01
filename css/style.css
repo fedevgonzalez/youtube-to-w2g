@@ -249,19 +249,10 @@ html[dark] .w2g-button,
   fill: rgba(0, 0, 0, 0.8) !important;
 }
 
-/* Show button on hover - YouTube containers */
-ytd-video-renderer:hover .w2g-thumbnail-button,
-ytd-rich-item-renderer:hover .w2g-thumbnail-button,
-ytd-compact-video-renderer:hover .w2g-thumbnail-button,
-ytd-grid-video-renderer:hover .w2g-thumbnail-button,
-ytd-reel-item-renderer:hover .w2g-thumbnail-button,
-ytd-rich-grid-media:hover .w2g-thumbnail-button,
-ytm-video-card-renderer:hover .w2g-thumbnail-button,
-ytm-compact-video-renderer:hover .w2g-thumbnail-button,
-yt-lockup-view-model:hover .w2g-thumbnail-button,
-yt-lockup-view-model.ytd-item-section-renderer:hover .w2g-thumbnail-button,
-ytd-item-section-renderer ytd-video-renderer:hover .w2g-thumbnail-button,
-ytd-item-section-renderer ytd-compact-video-renderer:hover .w2g-thumbnail-button {
+/* Show button on hover/focus of the thumbnail host (structural, class-name independent) */
+.w2g-thumb-host:hover .w2g-thumbnail-button,
+.w2g-thumb-host:focus-within .w2g-thumbnail-button,
+.w2g-thumbnail-button:focus-visible {
   opacity: 1 !important;
 }
 
@@ -302,20 +293,19 @@ ytd-item-section-renderer ytd-compact-video-renderer:hover .w2g-thumbnail-button
   fill: white !important;
 }
 
+/* Queued state (Shift+click) */
+.w2g-thumbnail-button.queued {
+  background-color: rgba(156, 39, 176, 0.6) !important;
+}
+
+.w2g-button.queued {
+  background-color: rgba(156, 39, 176, 0.4) !important;
+}
+
 /* Spin animation */
 @keyframes w2g-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
-}
-
-/* Specific styles for yt-lockup-view-model structure */
-.yt-lockup-view-model__content-image {
-  position: relative !important;
-}
-
-.yt-lockup-view-model__content-image .w2g-thumbnail-button.yt-lockup {
-  bottom: 8px !important;
-  left: 8px !important;
 }
 
 /* =====================================================
